@@ -184,5 +184,18 @@
             }
         }
     </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('تم تسجيل ServiceWorker بنجاح! النطاق: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('فشل تسجيل ServiceWorker: ', err);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
