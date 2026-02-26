@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Na'awn Delivery Services</title>
+    
+    <link rel="icon" href="https://i.imgur.com/OqQuD0p.png" type="image/png">
     <link rel="manifest" href="manifest.json">
+    
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -26,6 +29,10 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             border-bottom: 3px solid var(--primary-gold);
             position: sticky; top: 0; z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .header img {
+            height: 40px; margin-left: 10px; border-radius: 8px;
         }
         .container { padding: 20px; max-width: 600px; margin: 0 auto; flex: 1; width: 100%; box-sizing: border-box;}
         .card {
@@ -53,7 +60,6 @@
         .map-box { height: 300px; border-radius: 8px; margin-top: 15px; z-index: 1;}
         .section-title { color: var(--primary-gold); border-bottom: 2px solid #eee; padding-bottom: 5px; }
         
-        /* تصميم الفوتر الاحترافي للروابط المخفية */
         .footer {
             text-align: center; padding: 20px; font-size: 13px; color: #aaa;
             margin-top: auto; border-top: 1px solid #eee; background: var(--bg-white);
@@ -64,11 +70,15 @@
 </head>
 <body>
 
-    <div class="header">Na'awn Delivery</div>
+    <div class="header">
+        <img src="https://i.imgur.com/OqQuD0p.png" alt="شعار نعاون">
+        Na'awn Delivery
+    </div>
 
     <div class="container">
         <div id="customer-login" class="card section">
             <div style="text-align: center; margin-bottom: 20px;">
+                <img src="https://i.imgur.com/OqQuD0p.png" alt="شعار نعاون" style="width: 110px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
                 <h2 style="color: var(--primary-gold); margin-bottom: 5px;">أهلاً بك في نعاون 🌟</h2>
                 <p style="color: #666; font-size: 14px; margin-top: 0;">منصتك الأولى لتوصيل الطلبات بسرعة وأمان</p>
             </div>
@@ -102,6 +112,9 @@
 
         <div id="driver-login" class="card section hidden">
             <button class="btn-back" onclick="showSection('customer-login')">🔙 العودة للرئيسية</button>
+            <div style="text-align: center;">
+                <img src="https://i.imgur.com/OqQuD0p.png" style="width: 80px; margin-bottom: 10px; border-radius: 10px;">
+            </div>
             <h3>بوابة المناديب</h3>
             <p style="color:#666; font-size:14px;">هذه البوابة مخصصة لمناديب فريق نعاون فقط.</p>
             <input type="text" id="drv-id" placeholder="رقم البطاقة">
@@ -124,6 +137,9 @@
 
         <div id="admin-login" class="card section hidden">
             <button class="btn-back" onclick="showSection('customer-login')">🔙 العودة للرئيسية</button>
+            <div style="text-align: center;">
+                <img src="https://i.imgur.com/OqQuD0p.png" style="width: 80px; margin-bottom: 10px; border-radius: 10px;">
+            </div>
             <h3>لوحة تحكم الإدارة</h3>
             <input type="text" id="adm-user" placeholder="اسم المستخدم">
             <input type="password" id="adm-pass" placeholder="كلمة المرور">
@@ -166,12 +182,10 @@
             }
         });
 
-        // تم تعديل دالة showSection لتتحكم بظهور وإخفاء الفوتر
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
             document.getElementById(sectionId).classList.remove('hidden');
             
-            // إخفاء الفوتر إذا كان المستخدم داخل لوحة التحكم ليكون التصميم أنظف
             if(sectionId.includes('dashboard')) {
                 document.getElementById('main-footer').classList.add('hidden');
             } else {
@@ -183,7 +197,7 @@
             if(confirm("هل أنت متأكد أنك تريد تسجيل الخروج؟")) {
                 localStorage.clear(); 
                 if(watchId && navigator.geolocation) navigator.geolocation.clearWatch(watchId); 
-                showSection('customer-login'); // العودة لصفحة العميل الافتراضية
+                showSection('customer-login'); 
             }
         }
 
