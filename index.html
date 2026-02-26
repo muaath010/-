@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Na'awn Delivery Services</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary-gold: #D4AF37;
+            --dark-gold: #AA8C2C;
+            --bg-white: #FFFFFF;
+            --text-dark: #333333;
+            --light-gray: #F9F9F9;
+        }
+        body {
+            font-family: 'Cairo', sans-serif; margin: 0; padding: 0;
+            background-color: var(--light-gray); color: var(--text-dark);
+        }
+        .header {
+            background-color: var(--bg-white); color: var(--primary-gold);
+            text-align: center; padding: 15px; font-size: 24px; font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            border-bottom: 3px solid var(--primary-gold);
+            position: sticky; top: 0; z-index: 1000;
+        }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .card {
+            background: var(--bg-white); border-radius: 12px; padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px;
+        }
+        input, select, textarea, button {
+            width: 100%; padding: 12px; margin: 10px 0;
+            border-radius: 8px; border: 1px solid #ddd;
+            font-family: 'Cairo', sans-serif; box-sizing: border-box;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary-gold); }
+        button {
+            background-color: var(--primary-gold); color: var(--bg-white);
+            border: none; font-size: 16px; font-weight: bold;
+            cursor: pointer; transition: 0.3s;
+        }
+        button:hover { background-color: var(--dark-gold); }
+        .hidden { display: none; }
+        .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; }
+        #map { height: 300px; border-radius: 8px; margin-top: 10px; z-index: 1;}
+    </style>
+</head>
+<body>
+
+    <div class="header">Na'awn Delivery</div>
+
+    <div class="container">
+        <div class="nav-buttons" id="main-nav">
+            <button onclick="showSection('customer-login')">العملاء</button>
+            <button onclick="showSection('driver-login')">المناديب</button>
+            <button onclick="showSection('admin-login')">الإدارة</button>
+        </div>
+
+        <div id="customer-login" class="card section">
+            <h3>تسجيل دخول العميل</h3>
+            <input type="tel" id="cust-phone" placeholder="رقم الهاتف (مثال: 9XXXXXXX)">
+            <button onclick="loginCustomer()">دخول / تسجيل جديد</button>
+        </div>
+
+        <div id="customer-dashboard" class="card section hidden">
+            <h3>طلب توصيل جديد</h3>
+            <select id="city-select" onchange="updateLocations()">
+                <option value="">اختر الولاية...</option>
+                <option value="ibri">عبري</option>
+                <option value="nizwa">نزوى</option>
+            </select>
+            <select id="area-select">
+                <option value="">اختر المنطقة...</option>
+            </select>
+            <input type="text" id="pickup-loc" placeholder="مكان الاستلام (اسم المحل/المطعم)">
+            <textarea id="order-details" placeholder="تفاصيل الطلب..."></textarea>
+            
+            <button onclick="submitOrder()">إرسال الطلب</button>
+            <hr>
+            <h3>تقييم خدمة سابقة أو شكوى</h3>
+            <textarea id="complaint-text" placeholder="اكتب تقييمك أو شكواك هنا..."></textarea>
+            <button onclick="submitFeedback()" style="background-color: #333;">إرسال للإدارة</button>
+        </div>
+
+        <div id="driver-login" class="card section hidden">
+            <h3>بوابة المناديب</h3>
+            <input type="text" id="drv-id" placeholder="رقم البطاقة">
+            <input type="password" id="drv-pass" placeholder="كلمة المرور">
+            <button onclick="loginDriver()">دخول المندوب</button>
+        </div>
+
+        <div id="driver-dashboard" class="card section hidden">
+            <h3>الطلبات المتاحة لك</h3>
+            <div id="driver-orders-list"><p>لا توجد طلبات مسندة حالياً.</p></div>
+            <button onclick="startTracking()">تفعيل التتبع المباشر (GPS)</button>
+            <div id="map" class="hidden"></div>
+        </div>
+
+        <div id="admin-login" class="card section hidden">
+            <h3>لوحة تحكم الإدارة</h3>
+            <input type="text" id="adm-user" placeholder="اسم المستخدم">
+            <input type="password" id="adm-pass" placeholder="كلمة المرور">
+            <button onclick="loginAdmin()">دخول الإدارة</button>
+        </div>
+
+        <div id="admin-dashboard" class="card section hidden">
+            <h3>إدارة العمليات والمناديب</h3>
+            <button onclick="fetchNewOrders()">تحديث الطلبات الجديدة</button>
+            <div id="admin-orders-list"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const SCRIPT_URL = 'YOUR_GOOGLE_SCRIPT_MACRO_URL';
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
+
+        // المناطق بدون تسعيرة
+        const areas = {
+            ibri: ["المركز", "الريبة", "السليف"],
+            nizwa: ["السوق", "فرق"]
+        };
+
+        function updateLocations() {
+            const city = document.getElementById('city-select').value;
+            const areaSelect = document.getElementById('area-select');
+            areaSelect.innerHTML = '<option value="">اختر المنطقة...</option>';
+            if(city && areas[city]) {
+                areas[city].forEach(area => {
+                    areaSelect.innerHTML += `<option value="${area}">${area}</option>`;
+                });
+            }
+        }
+
+        function loginCustomer() {
+            const phone = document.getElementById('cust-phone').value;
+            if(phone.length >= 8) {
+                localStorage.setItem('customerPhone', phone);
+                showSection('customer-dashboard');
+            } else {
+                alert('الرجاء إدخال رقم هاتف صحيح');
+            }
+        }
+
+        function submitOrder() {
+            const payload = {
+                action: 'new_order',
+                phone: localStorage.getItem('customerPhone'),
+                city: document.getElementById('city-select').value,
+                area: document.getElementById('area-select').value,
+                pickup: document.getElementById('pickup-loc').value,
+                details: document.getElementById('order-details').value
+            };
+            
+            alert('تم إرسال الطلب بنجاح إلى الإدارة!');
+            console.log(payload); 
+        }
+
+        let map, marker;
+        function startTracking() {
+            document.getElementById('map').classList.remove('hidden');
+            map = L.map('map').setView([23.2255, 56.5165], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    if(!marker) {
+                        marker = L.marker([lat, lng]).addTo(map);
+                    } else {
+                        marker.setLatLng([lat, lng]);
+                    }
+                    map.panTo([lat, lng]);
+                }, error => alert("يرجى تفعيل الـ GPS"), {enableHighAccuracy: true});
+            }
+        }
+    </script>
+</body>
+</html>
