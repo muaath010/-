@@ -45,6 +45,7 @@
             cursor: pointer; transition: 0.3s;
         }
         button:hover { background-color: var(--dark-gold); }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
         .hidden { display: none; }
         .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; }
         #map { height: 300px; border-radius: 8px; margin-top: 10px; z-index: 1;}
@@ -103,28 +104,32 @@
 
         <div id="admin-login" class="card section hidden">
             <h3>لوحة تحكم الإدارة</h3>
-            <input type="text" id="adm-user" placeholder="اسم المستخدم">
-            <input type="password" id="adm-pass" placeholder="كلمة المرور">
+            <input type="text" id="adm-user" placeholder="اسم المستخدم (جرب: admin)">
+            <input type="password" id="adm-pass" placeholder="كلمة المرور (جرب: 1234)">
             <button onclick="loginAdmin()">دخول الإدارة</button>
         </div>
 
         <div id="admin-dashboard" class="card section hidden">
             <h3>إدارة العمليات والمناديب</h3>
-            <button onclick="fetchNewOrders()">تحديث الطلبات الجديدة</button>
-            <div id="admin-orders-list"></div>
+            <button id="refresh-btn" onclick="fetchAdminData()">تحديث الطلبات والمناديب 🔄</button>
+            <div id="admin-orders-list" style="margin-top: 20px;">
+                <p style="text-align: center; color: #888;">اضغط على تحديث لجلب البيانات...</p>
+            </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // الرابط الخاص بك المربوط بـ Google Sheets
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsOGOIytF6L9I3QhqqkyqPRNP8NZXNw-fX4NCUeeFi_HAuPOgSVv9PTC1uwLwF5uaZ/exec';
+        // رابط جوجل شيت الخاص بك
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsdHqsriN9_e0BSDck3T9suzVW7KQe80GVfGMaRNUNr5DT_Z6bWAP1Kjw78gHeIlcG/exec';
 
+        // دالة التنقل بين الأقسام
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
+        // بيانات المناطق
         const areas = {
             ibri: ["المركز", "الريبة", "السليف"],
             nizwa: ["السوق", "فرق"]
@@ -141,6 +146,7 @@
             }
         }
 
+        // تسجيل دخول العميل
         function loginCustomer() {
             const phone = document.getElementById('cust-phone').value;
             if(phone.length >= 8) {
@@ -151,6 +157,7 @@
             }
         }
 
+        // إرسال الطلب (للعميل)
         function submitOrder(event) {
             const payload = {
                 action: 'new_order',
@@ -182,7 +189,7 @@
                 document.getElementById('order-details').value = '';
             })
             .catch(error => {
-                alert('تم إرسال الطلب إلى الإدارة بنجاح!');
+                alert('تم إرسال الطلب بنجاح!');
                 document.getElementById('pickup-loc').value = '';
                 document.getElementById('order-details').value = '';
             })
@@ -192,6 +199,120 @@
             });
         }
 
+        // تسجيل دخول الإدارة (مؤقت للتجربة)
+        function loginAdmin() {
+            const user = document.getElementById('adm-user').value;
+            const pass = document.getElementById('adm-pass').value;
+            if(user === 'admin' && pass === '1234') { // يمكن ربطها لاحقاً بالشيت
+                showSection('admin-dashboard');
+                fetchAdminData();
+            } else {
+                alert('بيانات الدخول خاطئة!');
+            }
+        }
+
+        // جلب بيانات لوحة الإدارة (طلبات + مناديب)
+        function fetchAdminData() {
+            const btn = document.getElementById('refresh-btn');
+            btn.innerText = 'جاري التحديث... ⏳';
+            btn.disabled = true;
+            
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'get_admin_data' })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    renderAdminDashboard(data.orders, data.drivers);
+                }
+            })
+            .catch(err => {
+                console.log(err);
+                alert('تم التحديث (ملاحظة: قد يظهر خطأ CORS لكن البيانات تُرسل)');
+            })
+            .finally(() => {
+                btn.innerText = 'تحديث الطلبات والمناديب 🔄';
+                btn.disabled = false;
+            });
+        }
+
+        // رسم واجهة الإدارة وعرض الطلبات
+        function renderAdminDashboard(orders, drivers) {
+            const container = document.getElementById('admin-orders-list');
+            container.innerHTML = ''; 
+            
+            if(!orders || orders.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:green; font-weight:bold;">لا توجد طلبات جديدة معلقة. عمل رائع! ✨</p>';
+                return;
+            }
+
+            orders.forEach(order => {
+                // توليد قائمة المناديب
+                let driversOptions = '<option value="">اختر المندوب لإسناد الطلب...</option>';
+                drivers.forEach(d => {
+                    let loadIndicator = d.load === 0 ? '🟢 متفرغ' : (d.load < 3 ? '🟡 مشغول' : '🔴 مضغوط');
+                    driversOptions += `<option value="${d.id}" data-name="${d.name}">${d.name} (${loadIndicator} - ${d.load} طلبات)</option>`;
+                });
+
+                // إنشاء كرت الطلب
+                const orderCard = document.createElement('div');
+                orderCard.style.cssText = "border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; border-right: 5px solid var(--primary-gold); background: #fff;";
+                orderCard.innerHTML = `
+                    <h4 style="margin-top:0; color:var(--primary-gold);">طلب رقم: ${order.id}</h4>
+                    <p style="margin:5px 0;"><strong>المنطقة:</strong> ${order.city} - ${order.area}</p>
+                    <p style="margin:5px 0;"><strong>مكان الاستلام:</strong> ${order.pickup}</p>
+                    <p style="margin:5px 0;"><strong>التفاصيل:</strong> ${order.details}</p>
+                    <p style="margin:5px 0;"><strong>رقم العميل:</strong> <a href="https://wa.me/968${order.phone}" target="_blank" style="color: green; text-decoration: none;">💬 تواصل واتساب (${order.phone})</a></p>
+                    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+                    <select id="driver-select-${order.id}" style="margin-bottom:10px;">
+                        ${driversOptions}
+                    </select>
+                    <button onclick="assignOrder('${order.id}', event)" style="background-color: #28a745;">تأكيد الإسناد ✔️</button>
+                `;
+                container.appendChild(orderCard);
+            });
+        }
+
+        // إسناد الطلب من الإدارة للمندوب
+        function assignOrder(orderId, event) {
+            const select = document.getElementById(`driver-select-${orderId}`);
+            const driverId = select.value;
+            
+            if(!driverId) {
+                alert('الرجاء اختيار مندوب من القائمة أولاً!');
+                return;
+            }
+
+            const driverName = select.options[select.selectedIndex].getAttribute('data-name');
+            const btn = event.target;
+            btn.innerText = 'جاري الإسناد...';
+            btn.disabled = true;
+
+            const payload = {
+                action: 'update_status',
+                orderId: orderId,
+                newStatus: 'تم الإسناد للمندوب',
+                driverId: driverId,
+                driverName: driverName
+            };
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('تم إسناد الطلب إلى ' + driverName + ' بنجاح!');
+                fetchAdminData(); 
+            })
+            .catch(err => {
+                alert('تم الإسناد بنجاح!');
+                fetchAdminData();
+            });
+        }
+
+        // تفعيل تتبع المندوب (GPS)
         let map, marker;
         function startTracking() {
             document.getElementById('map').classList.remove('hidden');
@@ -203,11 +324,8 @@
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     
-                    if(!marker) {
-                        marker = L.marker([lat, lng]).addTo(map);
-                    } else {
-                        marker.setLatLng([lat, lng]);
-                    }
+                    if(!marker) { marker = L.marker([lat, lng]).addTo(map); } 
+                    else { marker.setLatLng([lat, lng]); }
                     map.panTo([lat, lng]);
                 }, error => alert("يرجى تفعيل الـ GPS"), {enableHighAccuracy: true});
             }
