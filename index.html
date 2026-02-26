@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Na'awn Delivery Services</title>
-    
     <link rel="manifest" href="manifest.json">
-    
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -48,7 +46,11 @@
         button:disabled { background-color: #ccc; cursor: not-allowed; }
         .hidden { display: none; }
         .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; }
-        #map { height: 300px; border-radius: 8px; margin-top: 10px; z-index: 1;}
+        #map { height: 350px; border-radius: 8px; margin-top: 15px; z-index: 1;}
+        .section-title { color: var(--primary-gold); border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .badge { background: #eee; padding: 3px 8px; border-radius: 5px; font-size: 12px; }
+        .badge.green { background: #d4edda; color: #155724; }
+        .badge.gold { background: #fff3cd; color: #856404; }
     </style>
 </head>
 <body>
@@ -65,157 +67,192 @@
         <div id="customer-login" class="card section">
             <h3>تسجيل دخول العميل</h3>
             <input type="tel" id="cust-phone" placeholder="رقم الهاتف (مثال: 9XXXXXXX)">
-            <button onclick="loginCustomer()">دخول / تسجيل جديد</button>
+            <button onclick="loginCustomer()">دخول لطلب توصيل</button>
         </div>
 
         <div id="customer-dashboard" class="card section hidden">
             <h3>طلب توصيل جديد</h3>
-            <select id="city-select" onchange="updateLocations()">
-                <option value="">اختر الولاية...</option>
-                <option value="ibri">عبري</option>
-                <option value="nizwa">نزوى</option>
-            </select>
-            <select id="area-select">
-                <option value="">اختر المنطقة...</option>
-            </select>
+            <input type="text" id="cust-city" placeholder="الولاية (مثال: عبري، نزوى)">
+            <input type="text" id="cust-area" placeholder="المنطقة / الحي (مثال: السوق، الريبة)">
             <input type="text" id="pickup-loc" placeholder="مكان الاستلام (اسم المحل/المطعم)">
             <textarea id="order-details" placeholder="تفاصيل الطلب..."></textarea>
             
-            <button onclick="submitOrder(event)">إرسال الطلب</button>
-            <hr>
-            <h3>تقييم خدمة سابقة أو شكوى</h3>
-            <textarea id="complaint-text" placeholder="اكتب تقييمك أو شكواك هنا..."></textarea>
-            <button onclick="submitFeedback()" style="background-color: #333;">إرسال للإدارة</button>
+            <button onclick="submitOrder(event)">إرسال الطلب وإبلاغ الإدارة 📲</button>
         </div>
 
         <div id="driver-login" class="card section hidden">
             <h3>بوابة المناديب</h3>
+            <input type="text" id="drv-name" placeholder="الاسم الكريم">
             <input type="text" id="drv-id" placeholder="رقم البطاقة">
-            <input type="password" id="drv-pass" placeholder="كلمة المرور">
-            <button onclick="loginDriver()">دخول المندوب</button>
+            <input type="password" id="drv-pass" placeholder="الرمز السري">
+            <button onclick="loginDriver()">تسجيل الدخول</button>
         </div>
 
         <div id="driver-dashboard" class="card section hidden">
-            <h3>الطلبات المتاحة لك</h3>
-            <div id="driver-orders-list"><p>لا توجد طلبات مسندة حالياً.</p></div>
-            <button onclick="startTracking()">تفعيل التتبع المباشر (GPS)</button>
-            <div id="map" class="hidden"></div>
+            <h3>الطلبات المسندة إليك</h3>
+            <button onclick="fetchDriverOrders()">تحديث طلباتي 🔄</button>
+            <div id="driver-orders-list"></div>
+            <div id="map-container" class="hidden">
+                <h4 class="section-title">📍 تتبع موقعك المباشر</h4>
+                <div id="map"></div>
+            </div>
         </div>
 
         <div id="admin-login" class="card section hidden">
             <h3>لوحة تحكم الإدارة</h3>
-            <input type="text" id="adm-user" placeholder="اسم المستخدم (جرب: admin)">
-            <input type="password" id="adm-pass" placeholder="كلمة المرور (جرب: 1234)">
-            <button onclick="loginAdmin()">دخول الإدارة</button>
+            <input type="text" id="adm-user" placeholder="اسم المستخدم">
+            <input type="password" id="adm-pass" placeholder="كلمة المرور">
+            <button onclick="loginAdmin()">دخول للإدارة</button>
         </div>
 
         <div id="admin-dashboard" class="card section hidden">
             <h3>إدارة العمليات والمناديب</h3>
-            <button id="refresh-btn" onclick="fetchAdminData()">تحديث الطلبات والمناديب 🔄</button>
-            <div id="admin-orders-list" style="margin-top: 20px;">
-                <p style="text-align: center; color: #888;">اضغط على تحديث لجلب البيانات...</p>
-            </div>
+            <button id="refresh-btn" onclick="fetchAdminData()">تحديث لوحة الإدارة 🔄</button>
+            
+            <h4 class="section-title" style="margin-top: 20px;">🆕 الطلبات الجديدة (بانتظار الإسناد)</h4>
+            <div id="admin-new-orders"></div>
+
+            <h4 class="section-title" style="margin-top: 30px;">📋 جميع الطلبات وحالتها</h4>
+            <div id="admin-all-orders"></div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // رابط جوجل شيت الخاص بك
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsdHqsriN9_e0BSDck3T9suzVW7KQe80GVfGMaRNUNr5DT_Z6bWAP1Kjw78gHeIlcG/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJtGBOwTRAM0SrHOi09L97MFYj2QS-RoZL8p9GCSPhpcI-ojl54Fd7axb3KY2-e70w/exec';
+        const ADMIN_PHONE = "93516953";
 
-        // دالة التنقل بين الأقسام
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
-        // بيانات المناطق
-        const areas = {
-            ibri: ["المركز", "الريبة", "السليف"],
-            nizwa: ["السوق", "فرق"]
-        };
-
-        function updateLocations() {
-            const city = document.getElementById('city-select').value;
-            const areaSelect = document.getElementById('area-select');
-            areaSelect.innerHTML = '<option value="">اختر المنطقة...</option>';
-            if(city && areas[city]) {
-                areas[city].forEach(area => {
-                    areaSelect.innerHTML += `<option value="${area}">${area}</option>`;
-                });
-            }
-        }
-
-        // تسجيل دخول العميل
+        /* ================= العميل ================= */
         function loginCustomer() {
             const phone = document.getElementById('cust-phone').value;
             if(phone.length >= 8) {
                 localStorage.setItem('customerPhone', phone);
                 showSection('customer-dashboard');
-            } else {
-                alert('الرجاء إدخال رقم هاتف صحيح');
-            }
+            } else { alert('الرجاء إدخال رقم هاتف صحيح'); }
         }
 
-        // إرسال الطلب (للعميل)
         function submitOrder(event) {
             const payload = {
                 action: 'new_order',
                 phone: localStorage.getItem('customerPhone'),
-                city: document.getElementById('city-select').value,
-                area: document.getElementById('area-select').value,
+                city: document.getElementById('cust-city').value,
+                area: document.getElementById('cust-area').value,
                 pickup: document.getElementById('pickup-loc').value,
                 details: document.getElementById('order-details').value
             };
 
             if(!payload.city || !payload.area || !payload.pickup || !payload.details) {
-                alert('الرجاء تعبئة جميع تفاصيل الطلب');
-                return;
+                alert('الرجاء تعبئة جميع تفاصيل الطلب'); return;
             }
 
             const btn = event.target;
-            const originalText = btn.innerText;
-            btn.innerText = 'جاري إرسال الطلب... ⏳';
+            btn.innerText = 'جاري تسجيل الطلب... ⏳';
             btn.disabled = true;
 
-            fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
             .then(response => response.json())
             .then(data => {
-                alert('تم إرسال الطلب بنجاح إلى الإدارة!');
-                document.getElementById('pickup-loc').value = '';
-                document.getElementById('order-details').value = '';
-            })
-            .catch(error => {
+                // إرسال رسالة واتساب للإدارة
+                let msg = `✨ أهلاً إدارة فريق نعاون!\nيوجد طلب توصيل جديد للتو عبر المنصة.\n\n📍 الموقع: ${payload.city} - ${payload.area}\n🏪 الاستلام من: ${payload.pickup}\n📦 التفاصيل: ${payload.details}\n📞 رقم العميل: ${payload.phone}\n\nرجاءً مراجعة لوحة الإدارة لإسناد الطلب.`;
+                window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
+                
                 alert('تم إرسال الطلب بنجاح!');
                 document.getElementById('pickup-loc').value = '';
                 document.getElementById('order-details').value = '';
-            })
-            .finally(() => {
-                btn.innerText = originalText;
+            }).finally(() => {
+                btn.innerText = 'إرسال الطلب وإبلاغ الإدارة 📲';
                 btn.disabled = false;
             });
         }
 
-        // تسجيل دخول الإدارة (مؤقت للتجربة)
-        function loginAdmin() {
-            const user = document.getElementById('adm-user').value;
-            const pass = document.getElementById('adm-pass').value;
-            if(user === 'admin' && pass === '1234') { // يمكن ربطها لاحقاً بالشيت
-                showSection('admin-dashboard');
-                fetchAdminData();
-            } else {
-                alert('بيانات الدخول خاطئة!');
-            }
+        /* ================= المندوب ================= */
+        let map, marker;
+        function loginDriver() {
+            const name = document.getElementById('drv-name').value;
+            const id = document.getElementById('drv-id').value;
+            if(name && id) {
+                localStorage.setItem('driverName', name);
+                localStorage.setItem('driverId', id);
+                showSection('driver-dashboard');
+                fetchDriverOrders();
+            } else { alert('الرجاء إدخال الاسم ورقم البطاقة'); }
         }
 
-        // جلب بيانات لوحة الإدارة (طلبات + مناديب)
+        function fetchDriverOrders() {
+            const id = localStorage.getItem('driverId');
+            const container = document.getElementById('driver-orders-list');
+            container.innerHTML = '<p>جاري البحث عن طلباتك...</p>';
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'get_driver_data', driverId: id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                container.innerHTML = '';
+                if(data.orders.length === 0) {
+                    container.innerHTML = '<p style="color:green;">لا توجد طلبات مسندة إليك حالياً.</p>';
+                    return;
+                }
+
+                data.orders.forEach(order => {
+                    container.innerHTML += `
+                        <div style="border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:15px;">
+                            <h4 style="margin-top:0;">رقم الطلب: ${order.id}</h4>
+                            <p><strong>الاستلام من:</strong> ${order.pickup}</p>
+                            <p><strong>التسليم إلى:</strong> ${order.city} - ${order.area}</p>
+                            <p><strong>التفاصيل:</strong> ${order.details}</p>
+                            <button onclick="acceptOrder('${order.id}')" style="background:#28a745; margin-top:10px;">استلام الطلب وبدء التتبع 📍</button>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        function acceptOrder(orderId) {
+            const dName = localStorage.getItem('driverName');
+            const dId = localStorage.getItem('driverId');
+
+            // إبلاغ الإدارة بالواتساب
+            let msg = `🚀 أهلاً بالإدارة!\nأنا المندوب: ${dName} (رقم البطاقة: ${dId})\n\nلقد قمت بتأكيد استلام الطلب رقم [ ${orderId} ] من المنصة، وأنا في طريقي الآن لإنجازه! 📍`;
+            window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
+
+            // تفعيل الخريطة
+            document.getElementById('map-container').classList.remove('hidden');
+            if(!map) {
+                map = L.map('map').setView([23.2255, 56.5165], 14);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            }
+            
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    if(!marker) { marker = L.marker([lat, lng]).addTo(map); } 
+                    else { marker.setLatLng([lat, lng]); }
+                    map.panTo([lat, lng]);
+                }, error => alert("يرجى تفعيل الـ GPS بالهاتف ليعمل التتبع"), {enableHighAccuracy: true});
+            }
+
+            // تحديث الحالة في الشيت
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'قيد التوصيل (المندوب في الطريق)' })
+            });
+        }
+
+        /* ================= الإدارة ================= */
+        function loginAdmin() { showSection('admin-dashboard'); fetchAdminData(); }
+
         function fetchAdminData() {
             const btn = document.getElementById('refresh-btn');
-            btn.innerText = 'جاري التحديث... ⏳';
-            btn.disabled = true;
+            btn.innerText = 'جاري التحديث... ⏳'; btn.disabled = true;
             
             fetch(SCRIPT_URL, {
                 method: 'POST',
@@ -223,122 +260,69 @@
             })
             .then(res => res.json())
             .then(data => {
-                if(data.status === 'success') {
-                    renderAdminDashboard(data.orders, data.drivers);
-                }
-            })
-            .catch(err => {
-                console.log(err);
-                alert('تم التحديث (ملاحظة: قد يظهر خطأ CORS لكن البيانات تُرسل)');
-            })
-            .finally(() => {
-                btn.innerText = 'تحديث الطلبات والمناديب 🔄';
-                btn.disabled = false;
-            });
+                renderAdminDashboard(data.newOrders, data.allOrders, data.drivers);
+            }).finally(() => { btn.innerText = 'تحديث لوحة الإدارة 🔄'; btn.disabled = false; });
         }
 
-        // رسم واجهة الإدارة وعرض الطلبات
-        function renderAdminDashboard(orders, drivers) {
-            const container = document.getElementById('admin-orders-list');
-            container.innerHTML = ''; 
-            
-            if(!orders || orders.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:green; font-weight:bold;">لا توجد طلبات جديدة معلقة. عمل رائع! ✨</p>';
-                return;
-            }
+        function renderAdminDashboard(newOrders, allOrders, drivers) {
+            const newContainer = document.getElementById('admin-new-orders');
+            const allContainer = document.getElementById('admin-all-orders');
+            newContainer.innerHTML = ''; allContainer.innerHTML = '';
 
-            orders.forEach(order => {
-                // توليد قائمة المناديب
-                let driversOptions = '<option value="">اختر المندوب لإسناد الطلب...</option>';
+            // عرض الطلبات الجديدة
+            if(newOrders.length === 0) {
+                newContainer.innerHTML = '<p style="color:#888;">لا توجد طلبات جديدة.</p>';
+            } else {
+                let driversOptions = '<option value="">اختر المندوب...</option>';
                 drivers.forEach(d => {
-                    let loadIndicator = d.load === 0 ? '🟢 متفرغ' : (d.load < 3 ? '🟡 مشغول' : '🔴 مضغوط');
-                    driversOptions += `<option value="${d.id}" data-name="${d.name}">${d.name} (${loadIndicator} - ${d.load} طلبات)</option>`;
+                    driversOptions += `<option value="${d.id}" data-name="${d.name}">${d.name} (${d.load} طلبات نشطة)</option>`;
                 });
 
-                // إنشاء كرت الطلب
-                const orderCard = document.createElement('div');
-                orderCard.style.cssText = "border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; border-right: 5px solid var(--primary-gold); background: #fff;";
-                orderCard.innerHTML = `
-                    <h4 style="margin-top:0; color:var(--primary-gold);">طلب رقم: ${order.id}</h4>
-                    <p style="margin:5px 0;"><strong>المنطقة:</strong> ${order.city} - ${order.area}</p>
-                    <p style="margin:5px 0;"><strong>مكان الاستلام:</strong> ${order.pickup}</p>
-                    <p style="margin:5px 0;"><strong>التفاصيل:</strong> ${order.details}</p>
-                    <p style="margin:5px 0;"><strong>رقم العميل:</strong> <a href="https://wa.me/968${order.phone}" target="_blank" style="color: green; text-decoration: none;">💬 تواصل واتساب (${order.phone})</a></p>
-                    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-                    <select id="driver-select-${order.id}" style="margin-bottom:10px;">
-                        ${driversOptions}
-                    </select>
-                    <button onclick="assignOrder('${order.id}', event)" style="background-color: #28a745;">تأكيد الإسناد ✔️</button>
+                newOrders.forEach(order => {
+                    newContainer.innerHTML += `
+                        <div style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-right: 5px solid var(--primary-gold);">
+                            <h4 style="margin:0;">طلب: ${order.id}</h4>
+                            <p><strong>من:</strong> ${order.pickup} | <strong>إلى:</strong> ${order.area}</p>
+                            <select id="driver-select-${order.id}" style="margin-bottom:10px;">${driversOptions}</select>
+                            <button onclick="assignOrder('${order.id}', '${order.phone}', event)" style="background:var(--primary-gold);">إسناد وإبلاغ العميل 📲</button>
+                        </div>
+                    `;
+                });
+            }
+
+            // عرض جميع الطلبات لمعرفة أين هي ومع من
+            allOrders.reverse().forEach(order => {
+                let statusClass = order.status.includes('انتظار') ? 'gold' : 'green';
+                let driverInfo = order.driverName ? ` (مع المندوب: ${order.driverName})` : '';
+                allContainer.innerHTML += `
+                    <div style="border-bottom: 1px solid #eee; padding: 10px 0;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <strong>${order.id}</strong>
+                            <span class="badge ${statusClass}">${order.status}</span>
+                        </div>
+                        <p style="margin:5px 0; font-size:14px; color:#555;">المنطقة: ${order.area} ${driverInfo}</p>
+                    </div>
                 `;
-                container.appendChild(orderCard);
             });
         }
 
-        // إسناد الطلب من الإدارة للمندوب
-        function assignOrder(orderId, event) {
+        function assignOrder(orderId, customerPhone, event) {
             const select = document.getElementById(`driver-select-${orderId}`);
             const driverId = select.value;
-            
-            if(!driverId) {
-                alert('الرجاء اختيار مندوب من القائمة أولاً!');
-                return;
-            }
+            if(!driverId) { alert('الرجاء اختيار مندوب!'); return; }
 
             const driverName = select.options[select.selectedIndex].getAttribute('data-name');
-            const btn = event.target;
-            btn.innerText = 'جاري الإسناد...';
-            btn.disabled = true;
+            event.target.innerText = 'جاري الإسناد...';
 
-            const payload = {
-                action: 'update_status',
-                orderId: orderId,
-                newStatus: 'تم الإسناد للمندوب',
-                driverId: driverId,
-                driverName: driverName
-            };
+            // إبلاغ العميل بالواتساب
+            let msg = `🌟 عميلنا العزيز،\nتم استلام طلبك (رقم ${orderId}) من إدارة فريق نعاون بنجاح!\n\n🛵 تم إسناد الطلب إلى المندوب: ${driverName}.\nالطلب الآن في طريقه للبدء والتوصيل.\n\nشكراً لاختيارك خدمات نعاون للتوصيل! ✨`;
+            window.open(`https://wa.me/968${customerPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 
+            // حفظ في الشيت
             fetch(SCRIPT_URL, {
                 method: 'POST',
-                body: JSON.stringify(payload)
-            })
-            .then(res => res.json())
-            .then(data => {
-                alert('تم إسناد الطلب إلى ' + driverName + ' بنجاح!');
-                fetchAdminData(); 
-            })
-            .catch(err => {
-                alert('تم الإسناد بنجاح!');
-                fetchAdminData();
-            });
-        }
-
-        // تفعيل تتبع المندوب (GPS)
-        let map, marker;
-        function startTracking() {
-            document.getElementById('map').classList.remove('hidden');
-            map = L.map('map').setView([23.2255, 56.5165], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            
-            if ("geolocation" in navigator) {
-                navigator.geolocation.watchPosition(position => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    
-                    if(!marker) { marker = L.marker([lat, lng]).addTo(map); } 
-                    else { marker.setLatLng([lat, lng]); }
-                    map.panTo([lat, lng]);
-                }, error => alert("يرجى تفعيل الـ GPS"), {enableHighAccuracy: true});
-            }
-        }
-    </script>
-    
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => console.log('ServiceWorker registered'))
-                    .catch(err => console.log('ServiceWorker error: ', err));
-            });
+                body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم الإسناد للمندوب', driverId: driverId, driverName: driverName })
+            }).then(() => fetchAdminData());
         }
     </script>
 </body>
