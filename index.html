@@ -137,25 +137,37 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5Uebc805tQo8I1H0JQI7_fSJAKA6iAhR4rmUHbGpsBzNVcntz3dxS3r-Xt-lW9r5y/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw21BGJr5VfNUDCswO3T3y0T-es1jwZf46Wn1ZfMkjf9iCB6iAVLRhUGdmqebifwld0/exec';
         const ADMIN_PHONE = "93516953";
-        let watchId; // متغير لإيقاف التتبع عند الخروج
+        let watchId; 
+
+        // دالة استرجاع الجلسة عند تحديث الصفحة (Refresh)
+        window.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('adminLogged') === 'true') {
+                showSection('admin-dashboard');
+                fetchAdminData();
+            } else if (localStorage.getItem('driverId')) {
+                showSection('driver-dashboard');
+                fetchDriverOrders();
+            } else if (localStorage.getItem('customerPhone')) {
+                showSection('customer-dashboard');
+                checkMyOrder();
+            }
+        });
 
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
-        // --- دالة تسجيل الخروج الموحدة ---
         function logout() {
             if(confirm("هل أنت متأكد أنك تريد تسجيل الخروج؟")) {
-                localStorage.clear(); // مسح البيانات
+                localStorage.clear(); 
                 if(watchId && navigator.geolocation) {
-                    navigator.geolocation.clearWatch(watchId); // إيقاف الـ GPS
+                    navigator.geolocation.clearWatch(watchId); 
                 }
                 document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
-                document.getElementById('main-nav').classList.remove('hidden'); // إظهار القائمة الرئيسية
-                alert("تم تسجيل الخروج بنجاح. نراك قريباً!");
+                document.getElementById('main-nav').classList.remove('hidden'); 
             }
         }
 
@@ -186,8 +198,6 @@
                         <strong>طلب رقم:</strong> ${data.order.id}<br>
                         <strong>الحالة الآن:</strong> <span style="color:var(--primary-gold); font-weight:bold;">${data.order.status}</span><br>
                     `;
-                    
-                    // إذا كان المندوب في الطريق وهناك إحداثيات
                     if(data.order.status.includes('قيد التوصيل') && data.order.lat) {
                         document.getElementById('customer-map-container').classList.remove('hidden');
                         if(!customerMap) {
@@ -221,7 +231,9 @@
                 let msg = `✨ أهلاً إدارة فريق نعاون!\nيوجد طلب توصيل جديد.\n📍 ${payload.city} - ${payload.area}\n📞 رقم العميل: ${payload.phone}`;
                 window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
                 alert('تم إرسال الطلب بنجاح!');
-                checkMyOrder(); // تحديث الواجهة
+                checkMyOrder();
+                document.getElementById('pickup-loc').value = '';
+                document.getElementById('order-details').value = '';
             }).finally(() => { btn.innerText = 'إرسال الطلب وإبلاغ الإدارة 📲'; btn.disabled = false; });
         }
 
@@ -263,11 +275,9 @@
             const dName = localStorage.getItem('driverName');
             const dId = localStorage.getItem('driverId');
             
-            // إبلاغ الإدارة
             let msg = `أهلاً بالإدارة! أنا المندوب: ${dName}\nقمت باستلام الطلب [ ${orderId} ] وبدأت التوصيل 📍`;
             window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
 
-            // تفعيل التتبع وإرساله للشيت ليراه العميل
             document.getElementById('map-container').classList.remove('hidden');
             if(!driverMap) {
                 driverMap = L.map('driver-map').setView([23.2255, 56.5165], 14);
@@ -281,7 +291,6 @@
                     else { driverMarker.setLatLng([lat, lng]); }
                     driverMap.panTo([lat, lng]);
 
-                    // إرسال الموقع بصمت إلى جوجل شيت
                     fetch(SCRIPT_URL, {
                         method: 'POST',
                         body: JSON.stringify({ action: 'update_location', orderId: orderId, lat: lat, lng: lng })
@@ -290,7 +299,6 @@
                 }, error => alert("يرجى تفعيل الـ GPS"), {enableHighAccuracy: true});
             }
 
-            // تحديث حالة الطلب
             fetch(SCRIPT_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'قيد التوصيل (المندوب في الطريق)', driverId: dId, driverName: dName })
@@ -298,7 +306,17 @@
         }
 
         /* ================= الإدارة ================= */
-        function loginAdmin() { showSection('admin-dashboard'); fetchAdminData(); }
+        function loginAdmin() { 
+            const user = document.getElementById('adm-user').value;
+            const pass = document.getElementById('adm-pass').value;
+            if(user === 'admin' && pass === '1234') { // يمكن تعديلها بكلمة المرور الخاصة بك
+                localStorage.setItem('adminLogged', 'true');
+                showSection('admin-dashboard'); 
+                fetchAdminData(); 
+            } else {
+                alert('بيانات الدخول خاطئة!');
+            }
+        }
 
         function fetchAdminData() {
             const btn = document.getElementById('refresh-btn');
