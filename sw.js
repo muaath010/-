@@ -1,4 +1,4 @@
-const CACHE_NAME = 'naawn-delivery-v2';
+const CACHE_NAME = 'naawn-delivery-v3';
 const urlsToCache = [
   './',
   './index.html',
