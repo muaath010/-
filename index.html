@@ -95,14 +95,13 @@
 
         <div id="driver-login" class="card section hidden">
             <h3>بوابة المناديب</h3>
-            <input type="text" id="drv-name" placeholder="الاسم الكريم">
             <input type="text" id="drv-id" placeholder="رقم البطاقة">
-            <input type="password" id="drv-pass" placeholder="الرمز السري">
-            <button onclick="loginDriver()">تسجيل الدخول</button>
+            <input type="password" id="drv-pass" placeholder="كلمة المرور">
+            <button onclick="loginDriver(event)">تسجيل الدخول</button>
         </div>
 
         <div id="driver-dashboard" class="card section hidden">
-            <h3>الطلبات المسندة إليك</h3>
+            <h3 id="driver-welcome-msg">الطلبات المسندة إليك</h3>
             <button onclick="fetchDriverOrders()">تحديث طلباتي 🔄</button>
             <div id="driver-orders-list"></div>
             
@@ -118,7 +117,7 @@
             <h3>لوحة تحكم الإدارة</h3>
             <input type="text" id="adm-user" placeholder="اسم المستخدم">
             <input type="password" id="adm-pass" placeholder="كلمة المرور">
-            <button onclick="loginAdmin()">دخول للإدارة</button>
+            <button onclick="loginAdmin(event)">دخول للإدارة</button>
         </div>
 
         <div id="admin-dashboard" class="card section hidden">
@@ -137,21 +136,19 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw21BGJr5VfNUDCswO3T3y0T-es1jwZf46Wn1ZfMkjf9iCB6iAVLRhUGdmqebifwld0/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcVvEvIPYzDZqvo4iDau34I2yA83HKnHecuQaoO0FGdAziZ6i_ifhbAiKutLY6Tz3j/exec';
         const ADMIN_PHONE = "93516953";
         let watchId; 
 
-        // دالة استرجاع الجلسة عند تحديث الصفحة (Refresh)
+        // استرجاع الجلسة عند التحديث
         window.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('adminLogged') === 'true') {
-                showSection('admin-dashboard');
-                fetchAdminData();
+                showSection('admin-dashboard'); fetchAdminData();
             } else if (localStorage.getItem('driverId')) {
-                showSection('driver-dashboard');
-                fetchDriverOrders();
+                document.getElementById('driver-welcome-msg').innerText = `أهلاً بك، ${localStorage.getItem('driverName')} 🛵`;
+                showSection('driver-dashboard'); fetchDriverOrders();
             } else if (localStorage.getItem('customerPhone')) {
-                showSection('customer-dashboard');
-                checkMyOrder();
+                showSection('customer-dashboard'); checkMyOrder();
             }
         });
 
@@ -163,9 +160,7 @@
         function logout() {
             if(confirm("هل أنت متأكد أنك تريد تسجيل الخروج؟")) {
                 localStorage.clear(); 
-                if(watchId && navigator.geolocation) {
-                    navigator.geolocation.clearWatch(watchId); 
-                }
+                if(watchId && navigator.geolocation) navigator.geolocation.clearWatch(watchId); 
                 document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
                 document.getElementById('main-nav').classList.remove('hidden'); 
             }
@@ -176,8 +171,7 @@
             const phone = document.getElementById('cust-phone').value;
             if(phone.length >= 8) {
                 localStorage.setItem('customerPhone', phone);
-                showSection('customer-dashboard');
-                checkMyOrder();
+                showSection('customer-dashboard'); checkMyOrder();
             } else { alert('الرجاء إدخال رقم هاتف صحيح'); }
         }
 
@@ -188,11 +182,8 @@
             statusArea.innerHTML = 'جاري البحث عن طلبك... ⏳';
 
             fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'check_customer_order', phone: phone })
-            })
-            .then(res => res.json())
-            .then(data => {
+                method: 'POST', body: JSON.stringify({ action: 'check_customer_order', phone: phone })
+            }).then(res => res.json()).then(data => {
                 if(data.status === "success" && data.order) {
                     statusArea.innerHTML = `
                         <strong>طلب رقم:</strong> ${data.order.id}<br>
@@ -203,8 +194,7 @@
                         if(!customerMap) {
                             customerMap = L.map('customer-map').setView([data.order.lat, data.order.lng], 15);
                             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(customerMap);
-                            customerMarker = L.marker([data.order.lat, data.order.lng]).addTo(customerMap)
-                                .bindPopup('المندوب هنا 🛵').openPopup();
+                            customerMarker = L.marker([data.order.lat, data.order.lng]).addTo(customerMap).bindPopup('المندوب هنا 🛵').openPopup();
                         } else {
                             customerMarker.setLatLng([data.order.lat, data.order.lng]);
                             customerMap.panTo([data.order.lat, data.order.lng]);
@@ -232,20 +222,33 @@
                 window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
                 alert('تم إرسال الطلب بنجاح!');
                 checkMyOrder();
-                document.getElementById('pickup-loc').value = '';
-                document.getElementById('order-details').value = '';
+                document.getElementById('pickup-loc').value = ''; document.getElementById('order-details').value = '';
             }).finally(() => { btn.innerText = 'إرسال الطلب وإبلاغ الإدارة 📲'; btn.disabled = false; });
         }
 
         /* ================= المندوب ================= */
         let driverMap, driverMarker;
-        function loginDriver() {
-            const name = document.getElementById('drv-name').value;
+        function loginDriver(event) {
             const id = document.getElementById('drv-id').value;
-            if(name && id) {
-                localStorage.setItem('driverName', name); localStorage.setItem('driverId', id);
-                showSection('driver-dashboard'); fetchDriverOrders();
-            } else { alert('الرجاء إدخال البيانات'); }
+            const pass = document.getElementById('drv-pass').value;
+            if(!id || !pass) { alert('الرجاء إدخال رقم البطاقة وكلمة المرور'); return; }
+
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = 'جاري التحقق... ⏳'; btn.disabled = true;
+
+            fetch(SCRIPT_URL, {
+                method: 'POST', body: JSON.stringify({ action: 'login_driver', id: id, pass: pass })
+            }).then(res => res.json()).then(data => {
+                if(data.status === 'success') {
+                    localStorage.setItem('driverId', id);
+                    localStorage.setItem('driverName', data.name);
+                    document.getElementById('driver-welcome-msg').innerText = `أهلاً بك، ${data.name} 🛵`;
+                    showSection('driver-dashboard'); fetchDriverOrders();
+                } else {
+                    alert('رقم البطاقة أو كلمة المرور غير صحيحة!');
+                }
+            }).catch(err => alert('خطأ في الاتصال بالخادم')).finally(() => { btn.innerText = originalText; btn.disabled = false; });
         }
 
         function fetchDriverOrders() {
@@ -292,30 +295,36 @@
                     driverMap.panTo([lat, lng]);
 
                     fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        body: JSON.stringify({ action: 'update_location', orderId: orderId, lat: lat, lng: lng })
+                        method: 'POST', body: JSON.stringify({ action: 'update_location', orderId: orderId, lat: lat, lng: lng })
                     });
-
                 }, error => alert("يرجى تفعيل الـ GPS"), {enableHighAccuracy: true});
             }
 
             fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'قيد التوصيل (المندوب في الطريق)', driverId: dId, driverName: dName })
+                method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'قيد التوصيل (المندوب في الطريق)', driverId: dId, driverName: dName })
             });
         }
 
         /* ================= الإدارة ================= */
-        function loginAdmin() { 
+        function loginAdmin(event) { 
             const user = document.getElementById('adm-user').value;
             const pass = document.getElementById('adm-pass').value;
-            if(user === 'admin' && pass === '1234') { // يمكن تعديلها بكلمة المرور الخاصة بك
-                localStorage.setItem('adminLogged', 'true');
-                showSection('admin-dashboard'); 
-                fetchAdminData(); 
-            } else {
-                alert('بيانات الدخول خاطئة!');
-            }
+            if(!user || !pass) { alert('الرجاء إدخال البيانات'); return; }
+
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = 'جاري التحقق... ⏳'; btn.disabled = true;
+
+            fetch(SCRIPT_URL, {
+                method: 'POST', body: JSON.stringify({ action: 'login_admin', user: user, pass: pass })
+            }).then(res => res.json()).then(data => {
+                if(data.status === 'success') {
+                    localStorage.setItem('adminLogged', 'true');
+                    showSection('admin-dashboard'); fetchAdminData(); 
+                } else {
+                    alert('بيانات الدخول خاطئة! تأكد من ورقة Admins');
+                }
+            }).catch(err => alert('خطأ في الاتصال بالخادم')).finally(() => { btn.innerText = originalText; btn.disabled = false; });
         }
 
         function fetchAdminData() {
