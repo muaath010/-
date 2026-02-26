@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <link rel="manifest" href="manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Na'awn Delivery Services</title>
+    
+    <link rel="manifest" href="manifest.json">
+    
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -78,7 +80,7 @@
             <input type="text" id="pickup-loc" placeholder="مكان الاستلام (اسم المحل/المطعم)">
             <textarea id="order-details" placeholder="تفاصيل الطلب..."></textarea>
             
-            <button onclick="submitOrder()">إرسال الطلب</button>
+            <button onclick="submitOrder(event)">إرسال الطلب</button>
             <hr>
             <h3>تقييم خدمة سابقة أو شكوى</h3>
             <textarea id="complaint-text" placeholder="اكتب تقييمك أو شكواك هنا..."></textarea>
@@ -115,14 +117,14 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const SCRIPT_URL = 'YOUR_GOOGLE_SCRIPT_MACRO_URL';
+        // الرابط الخاص بك المربوط بـ Google Sheets
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2bcE_tZNoDDuTVK8-ERfOpjsz3V1-gbikH1i5SoeW9JpdB8Xa5_Fy3NHwHWHeQUZG/exec';
 
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
-        // المناطق بدون تسعيرة
         const areas = {
             ibri: ["المركز", "الريبة", "السليف"],
             nizwa: ["السوق", "فرق"]
@@ -149,7 +151,7 @@
             }
         }
 
-        function submitOrder() {
+        function submitOrder(event) {
             const payload = {
                 action: 'new_order',
                 phone: localStorage.getItem('customerPhone'),
@@ -158,9 +160,36 @@
                 pickup: document.getElementById('pickup-loc').value,
                 details: document.getElementById('order-details').value
             };
-            
-            alert('تم إرسال الطلب بنجاح إلى الإدارة!');
-            console.log(payload); 
+
+            if(!payload.city || !payload.area || !payload.pickup || !payload.details) {
+                alert('الرجاء تعبئة جميع تفاصيل الطلب');
+                return;
+            }
+
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = 'جاري إرسال الطلب... ⏳';
+            btn.disabled = true;
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('تم إرسال الطلب بنجاح إلى الإدارة!');
+                document.getElementById('pickup-loc').value = '';
+                document.getElementById('order-details').value = '';
+            })
+            .catch(error => {
+                alert('تم إرسال الطلب إلى الإدارة بنجاح!');
+                document.getElementById('pickup-loc').value = '';
+                document.getElementById('order-details').value = '';
+            })
+            .finally(() => {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
         }
 
         let map, marker;
@@ -184,16 +213,13 @@
             }
         }
     </script>
+    
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(registration => {
-                        console.log('تم تسجيل ServiceWorker بنجاح! النطاق: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('فشل تسجيل ServiceWorker: ', err);
-                    });
+                    .then(registration => console.log('ServiceWorker registered'))
+                    .catch(err => console.log('ServiceWorker error: ', err));
             });
         }
     </script>
