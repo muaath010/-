@@ -18,6 +18,7 @@
         body {
             font-family: 'Cairo', sans-serif; margin: 0; padding: 0;
             background-color: var(--light-gray); color: var(--text-dark);
+            display: flex; flex-direction: column; min-height: 100vh;
         }
         .header {
             background-color: var(--bg-white); color: var(--primary-gold);
@@ -26,30 +27,39 @@
             border-bottom: 3px solid var(--primary-gold);
             position: sticky; top: 0; z-index: 1000;
         }
-        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; flex: 1; width: 100%; box-sizing: border-box;}
         .card {
-            background: var(--bg-white); border-radius: 12px; padding: 20px;
+            background: var(--bg-white); border-radius: 12px; padding: 25px 20px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px;
         }
         input, select, textarea, button {
-            width: 100%; padding: 12px; margin: 10px 0;
+            width: 100%; padding: 14px; margin: 10px 0;
             border-radius: 8px; border: 1px solid #ddd;
-            font-family: 'Cairo', sans-serif; box-sizing: border-box;
+            font-family: 'Cairo', sans-serif; box-sizing: border-box; font-size: 15px;
         }
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary-gold); }
         button {
             background-color: var(--primary-gold); color: var(--bg-white);
             border: none; font-size: 16px; font-weight: bold;
-            cursor: pointer; transition: 0.3s;
+            cursor: pointer; transition: 0.3s; margin-top: 15px;
         }
         button:hover { background-color: var(--dark-gold); }
         button:disabled { background-color: #ccc; cursor: not-allowed; }
         .btn-danger { background-color: #dc3545; margin-top: 20px;}
         .btn-danger:hover { background-color: #c82333; }
+        .btn-back { background-color: transparent; color: #666; border: 1px solid #ddd; margin-bottom: 15px; margin-top: 0;}
+        .btn-back:hover { background-color: #eee; }
         .hidden { display: none; }
-        .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; }
         .map-box { height: 300px; border-radius: 8px; margin-top: 15px; z-index: 1;}
         .section-title { color: var(--primary-gold); border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        
+        /* تصميم الفوتر الاحترافي للروابط المخفية */
+        .footer {
+            text-align: center; padding: 20px; font-size: 13px; color: #aaa;
+            margin-top: auto; border-top: 1px solid #eee; background: var(--bg-white);
+        }
+        .footer span { cursor: pointer; margin: 0 10px; transition: color 0.3s; }
+        .footer span:hover { color: var(--primary-gold); }
     </style>
 </head>
 <body>
@@ -57,20 +67,17 @@
     <div class="header">Na'awn Delivery</div>
 
     <div class="container">
-        <div class="nav-buttons" id="main-nav">
-            <button onclick="showSection('customer-login')">العملاء</button>
-            <button onclick="showSection('driver-login')">المناديب</button>
-            <button onclick="showSection('admin-login')">الإدارة</button>
-        </div>
-
         <div id="customer-login" class="card section">
-            <h3>تسجيل دخول العميل</h3>
-            <input type="tel" id="cust-phone" placeholder="رقم الهاتف (مثال: 9XXXXXXX)">
-            <button onclick="loginCustomer()">دخول</button>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: var(--primary-gold); margin-bottom: 5px;">أهلاً بك في نعاون 🌟</h2>
+                <p style="color: #666; font-size: 14px; margin-top: 0;">منصتك الأولى لتوصيل الطلبات بسرعة وأمان</p>
+            </div>
+            <input type="tel" id="cust-phone" placeholder="أدخل رقم هاتفك للبدء (مثال: 9XXXXXXX)">
+            <button onclick="loginCustomer()">دخول للطلب والتتبع</button>
         </div>
 
         <div id="customer-dashboard" class="card section hidden">
-            <h3>مرحباً بك في نعاون 🌟</h3>
+            <h3>مرحباً بك في لوحة تحكمك 🌟</h3>
             <button onclick="checkMyOrder()" style="background-color: #17a2b8;">تحديث حالة طلبي وتتبعه 📍</button>
             
             <div id="customer-status-area" style="margin: 15px 0; padding: 10px; border: 1px solid #eee; border-radius: 8px;">
@@ -94,7 +101,9 @@
         </div>
 
         <div id="driver-login" class="card section hidden">
+            <button class="btn-back" onclick="showSection('customer-login')">🔙 العودة للرئيسية</button>
             <h3>بوابة المناديب</h3>
+            <p style="color:#666; font-size:14px;">هذه البوابة مخصصة لمناديب فريق نعاون فقط.</p>
             <input type="text" id="drv-id" placeholder="رقم البطاقة">
             <input type="password" id="drv-pass" placeholder="كلمة المرور">
             <button onclick="loginDriver(event)">تسجيل الدخول</button>
@@ -114,6 +123,7 @@
         </div>
 
         <div id="admin-login" class="card section hidden">
+            <button class="btn-back" onclick="showSection('customer-login')">🔙 العودة للرئيسية</button>
             <h3>لوحة تحكم الإدارة</h3>
             <input type="text" id="adm-user" placeholder="اسم المستخدم">
             <input type="password" id="adm-pass" placeholder="كلمة المرور">
@@ -134,13 +144,17 @@
         </div>
     </div>
 
+    <div class="footer" id="main-footer">
+        <span onclick="showSection('driver-login')">بوابة الموظفين</span> | 
+        <span onclick="showSection('admin-login')">لوحة الإدارة</span>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcVvEvIPYzDZqvo4iDau34I2yA83HKnHecuQaoO0FGdAziZ6i_ifhbAiKutLY6Tz3j/exec';
         const ADMIN_PHONE = "93516953";
         let watchId; 
 
-        // استرجاع الجلسة عند التحديث
         window.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('adminLogged') === 'true') {
                 showSection('admin-dashboard'); fetchAdminData();
@@ -152,17 +166,24 @@
             }
         });
 
+        // تم تعديل دالة showSection لتتحكم بظهور وإخفاء الفوتر
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
             document.getElementById(sectionId).classList.remove('hidden');
+            
+            // إخفاء الفوتر إذا كان المستخدم داخل لوحة التحكم ليكون التصميم أنظف
+            if(sectionId.includes('dashboard')) {
+                document.getElementById('main-footer').classList.add('hidden');
+            } else {
+                document.getElementById('main-footer').classList.remove('hidden');
+            }
         }
 
         function logout() {
             if(confirm("هل أنت متأكد أنك تريد تسجيل الخروج؟")) {
                 localStorage.clear(); 
                 if(watchId && navigator.geolocation) navigator.geolocation.clearWatch(watchId); 
-                document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
-                document.getElementById('main-nav').classList.remove('hidden'); 
+                showSection('customer-login'); // العودة لصفحة العميل الافتراضية
             }
         }
 
@@ -233,8 +254,7 @@
             const pass = document.getElementById('drv-pass').value;
             if(!id || !pass) { alert('الرجاء إدخال رقم البطاقة وكلمة المرور'); return; }
 
-            const btn = event.target;
-            const originalText = btn.innerText;
+            const btn = event.target; const originalText = btn.innerText;
             btn.innerText = 'جاري التحقق... ⏳'; btn.disabled = true;
 
             fetch(SCRIPT_URL, {
@@ -311,8 +331,7 @@
             const pass = document.getElementById('adm-pass').value;
             if(!user || !pass) { alert('الرجاء إدخال البيانات'); return; }
 
-            const btn = event.target;
-            const originalText = btn.innerText;
+            const btn = event.target; const originalText = btn.innerText;
             btn.innerText = 'جاري التحقق... ⏳'; btn.disabled = true;
 
             fetch(SCRIPT_URL, {
