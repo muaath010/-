@@ -265,6 +265,24 @@
             }).finally(() => { btn.innerText = 'إرسال الطلب وإبلاغ الإدارة 📲'; btn.disabled = false; });
         }
 
+        // إرجاع كود الشكاوى والتقييم بالكامل 
+        function submitFeedback(event) {
+            const text = document.getElementById('complaint-text').value; let rating = 0;
+            const selectedStar = document.querySelector('input[name="rating"]:checked');
+            if (selectedStar) rating = selectedStar.value;
+            if (!rating && !text) { alert('الرجاء اختيار التقييم.'); return; }
+
+            const phone = localStorage.getItem('customerPhone'); const btn = event.target; btn.innerText = 'جاري الإرسال... ⏳'; btn.disabled = true;
+
+            let starsStr = rating > 0 ? '⭐'.repeat(rating) : 'بدون تقييم نجوم';
+            let msg = `🚨 *تنبيه تقييم/شكوى* 🚨\n📞 هاتف العميل: ${phone}\n⭐ التقييم: ${starsStr}\n💬 الرسالة: ${text}`;
+            window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
+
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'new_feedback', phone: phone, text: text, rating: rating }) }).then(() => {
+                alert('تم التقييم بنجاح. نحن نهتم برأيك! ✨'); document.getElementById('complaint-text').value = ''; if(selectedStar) selectedStar.checked = false;
+            }).finally(() => { btn.innerText = 'إرسال للإدارة مباشرة 📩'; btn.disabled = false; });
+        }
+
         /* ================= المندوب والكاميرا ================= */
         function loginDriver(e) {
             const id = document.getElementById('drv-id').value; const pass = document.getElementById('drv-pass').value;
@@ -294,7 +312,6 @@
                         actionsHtml = `<button onclick="acceptOrder('${order.id}')" class="btn-success">استلام وبدء التتبع 📍</button>`;
                     } else if (order.status.includes('قيد التوصيل')) {
                         let waLink = `https://wa.me/968${order.phone}?text=أهلاً عميلنا العزيز، أنا المندوب في طريقي إليك 🛵`;
-                        // زر الكاميرا الجديد
                         actionsHtml = `
                             <div style="margin: 10px 0; background: #f1f8ff; padding: 10px; border-radius: 5px;">
                                 <a href="tel:${order.phone}" style="display:inline-block; padding:8px 15px; background:#17a2b8; color:white; text-decoration:none; border-radius:5px;">📞 اتصال</a>
@@ -310,13 +327,11 @@
             });
         }
 
-        // فتح الكاميرا
         function openCamera(orderId) {
             currentPoDOrderId = orderId;
-            document.getElementById('cameraInput').click(); // يحفز زر الـ file المخفي
+            document.getElementById('cameraInput').click(); 
         }
 
-        // ضغط الصورة وإرسالها
         function processPoDImage(event) {
             const file = event.target.files[0];
             if (!file || !currentPoDOrderId) return;
@@ -329,13 +344,13 @@
                 const img = new Image();
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; // تصغير الحجم لتسريع الرفع
+                    const MAX_WIDTH = 800; 
                     const scaleSize = MAX_WIDTH / img.width;
                     canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     
-                    const base64Str = canvas.toDataURL('image/jpeg', 0.6); // ضغط 60%
+                    const base64Str = canvas.toDataURL('image/jpeg', 0.6); 
                     
                     fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'upload_pod', orderId: currentPoDOrderId, base64: base64Str }) })
                     .then(res => res.json()).then(data => {
@@ -380,7 +395,7 @@
             }
         }
 
-        /* ================= الإدارة ================= */
+        /* ================= الإدارة والرسم البياني ================= */
         function loginAdmin(event) { 
             const user = document.getElementById('adm-user').value; const pass = document.getElementById('adm-pass').value;
             if(!user || !pass) return;
@@ -403,8 +418,9 @@
                 if(!document.getElementById('admin-dashboard').classList.contains('hidden')){
                     const newContainer = document.getElementById('admin-new-orders'); const allContainer = document.getElementById('admin-all-orders');
                     newContainer.innerHTML = ''; allContainer.innerHTML = '';
-                    availableDriversData = data.drivers; // حفظ بيانات المناديب للإسناد الذكي
+                    availableDriversData = data.drivers; 
                     
+                    // إرجاع دالة الرسم البياني للعمل
                     renderCharts(data.allOrders, data.drivers);
 
                     if(data.newOrders.length === 0) newContainer.innerHTML = '<p style="color:#666;">لا توجد طلبات جديدة.</p>';
@@ -439,10 +455,8 @@
             }).finally(() => { isFetchingAdmin = false; });
         }
 
-        // الإسناد التلقائي الذكي
         function autoAssignOrder(orderId, phone) {
             if(availableDriversData.length === 0) { alert('لا يوجد مناديب مسجلين!'); return; }
-            // البحث عن المندوب صاحب أقل Load (أقل عدد طلبات قيد التوصيل)
             let bestDriver = availableDriversData.reduce((prev, curr) => (prev.load < curr.load) ? prev : curr);
             
             if(confirm(`سيتم إسناد الطلب ذكياً للمندوب: ${bestDriver.name}\n(لديه ${bestDriver.load} طلبات حالياً).\nهل توافق؟`)) {
@@ -461,8 +475,37 @@
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم الإسناد للمندوب', driverId: select.value, driverName: select.options[select.selectedIndex].getAttribute('data-name') }) }).then(() => fetchAdminData());
         }
 
-        function renderCharts(orders, drivers) { /* Code hidden to save space, unchanged from previous */ }
-        function submitFeedback(event) { /* Code hidden to save space, unchanged from previous */ }
+        // إرجاع كود الرسوم البيانية بالكامل
+        function renderCharts(orders, drivers) {
+            let pCount = 0, iCount = 0, dCount = 0;
+            orders.forEach(o => {
+                if(o.status.includes('مراجعة') || o.status.includes('انتظار')) pCount++;
+                else if(o.status.includes('تم التسليم')) dCount++;
+                else iCount++;
+            });
+
+            drivers.sort((a,b) => b.load - a.load);
+            let topDNames = drivers.slice(0,5).map(d => d.name);
+            let topDLoads = drivers.slice(0,5).map(d => d.load);
+
+            Chart.defaults.font.family = 'Cairo';
+            
+            if(chart1) { chart1.data.datasets[0].data = [pCount, iCount, dCount]; chart1.update(); } 
+            else {
+                chart1 = new Chart(document.getElementById('statusChart'), {
+                    type: 'doughnut', data: { labels: ['قيد المراجعة/الإسناد', 'قيد التوصيل', 'تم التسليم'], datasets: [{ data: [pCount, iCount, dCount], backgroundColor: ['#ffc107', '#17a2b8', '#28a745'] }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'حالة جميع الطلبات' } } }
+                });
+            }
+
+            if(chart2) { chart2.data.labels = topDNames; chart2.data.datasets[0].data = topDLoads; chart2.update(); }
+            else {
+                chart2 = new Chart(document.getElementById('driversChart'), {
+                    type: 'bar', data: { labels: topDNames, datasets: [{ label: 'الطلبات المنجزة', data: topDLoads, backgroundColor: '#D4AF37' }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'أفضل المناديب (توصيلات ناجحة)' }, legend: {display:false} } }
+                });
+            }
+        }
     </script>
 </body>
 </html>
