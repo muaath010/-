@@ -8,7 +8,8 @@
     <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
         :root { --primary-gold: #D4AF37; --dark-gold: #AA8C2C; --bg-white: #FFFFFF; --text-dark: #333333; --light-gray: #F9F9F9; }
         body { font-family: 'Cairo', sans-serif; margin: 0; padding: 0; background-color: var(--light-gray); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
         .header { background-color: var(--bg-white); color: var(--primary-gold); text-align: center; padding: 15px; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-bottom: 3px solid var(--primary-gold); position: sticky; top: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
@@ -118,6 +119,7 @@
                 <div id="driver-badge-display" class="driver-badge">🌟 جاري حساب مستواك...</div>
             </div>
             <button onclick="fetchDriverOrders()">تحديث طلباتي 🔄</button>
+            
             <div id="driver-orders-list"></div>
             
             <div id="map-container" class="hidden">
@@ -161,7 +163,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxvxWgPQsqI5poAsF1zgOiFn4W4P9pYZBo7Q1XH-Z98dbfAR3kE414eLg1x6bjxWRTt/exec'; // ضع رابطك هنا
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2yKzTgf2wwIeo-DtrpKN8MpcE0xcgdaHWx1K44kr3f2HNjUFjtq56shDQNPGrGW0a/exec'; // رابطك هنا
         const ADMIN_PHONE = "93516953";
         let watchId; let adminRefreshInterval; 
         let tempCustLat = null; let tempCustLng = null;
@@ -189,7 +191,6 @@
             }
         }
 
-        // معادلة حساب المسافة (Haversine Formula)
         function calculateDistance(lat1, lon1, lat2, lon2) {
             if(!lat1 || !lon1 || !lat2 || !lon2) return null;
             const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -240,11 +241,10 @@
                         const etaBox = document.getElementById('eta-display');
                         mapContainer.classList.remove('hidden');
 
-                        // حساب المسافة والـ ETA إذا كان موقع العميل محفوظاً
                         if(data.activeOrder.custLat && data.activeOrder.custLng) {
                             let dist = calculateDistance(data.activeOrder.lat, data.activeOrder.lng, data.activeOrder.custLat, data.activeOrder.custLng);
                             if(dist) {
-                                let timeMins = Math.ceil((dist / 40) * 60); // بافتراض سرعة 40 كم/س
+                                let timeMins = Math.ceil((dist / 40) * 60);
                                 etaBox.classList.remove('hidden');
                                 etaBox.innerHTML = `المسافة: ${dist} كم 🛵 | الوقت المتوقع: ${timeMins} دقيقة ⏱️`;
                             }
@@ -282,7 +282,7 @@
 
             const btn = event.target; btn.innerText = 'جاري التسجيل...'; btn.disabled = true;
 
-            let msg = `✨ أهلاً إدارة فريق نعاون!\nيوجد طلب توصيل جديد.\n📍 ${payload.city} - ${payload.area}\n🏪 من: ${payload.pickup}\n📞 العميل: ${payload.phone}\n${payload.custLat ? '📍 (تم إرفاق موقع العميل الـ GPS لتسهيل التوصيل)' : ''}`;
+            let msg = `✨ أهلاً إدارة فريق نعاون!\nيوجد طلب توصيل جديد.\n📍 ${payload.city} - ${payload.area}\n🏪 من: ${payload.pickup}\n📞 العميل: ${payload.phone}\n${payload.custLat ? '📍 (تم إرفاق موقع العميل)' : ''}`;
             window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
 
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) }).then(() => {
@@ -297,7 +297,7 @@
             const text = document.getElementById('complaint-text').value; let rating = 0;
             const selectedStar = document.querySelector('input[name="rating"]:checked');
             if (selectedStar) rating = selectedStar.value;
-            if (!rating && !text) { alert('الرجاء اختيار تقييم أو كتابة ملاحظة.'); return; }
+            if (!rating && !text) { alert('الرجاء اختيار التقييم.'); return; }
 
             const phone = localStorage.getItem('customerPhone'); const btn = event.target; btn.innerText = 'جاري الإرسال... ⏳'; btn.disabled = true;
 
@@ -311,6 +311,7 @@
         }
 
         /* ================= المندوب ================= */
+        let driverMap, driverMarker;
         function loginDriver(event) {
             const id = document.getElementById('drv-id').value; const pass = document.getElementById('drv-pass').value;
             if(!id || !pass) { alert('الرجاء إدخال البيانات'); return; }
@@ -332,7 +333,8 @@
 
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'get_driver_data', driverId: id }) })
             .then(res => res.json()).then(data => {
-                // نظام الحوافز
+                if(data.status !== "success") { container.innerHTML = '<p>خطأ في استرجاع البيانات.</p>'; return; }
+
                 let badgeTxt = "🛵 مبتدئ";
                 if(data.completedCount >= 100) badgeTxt = "💎 ماسي بطل";
                 else if(data.completedCount >= 50) badgeTxt = "🥇 ذهبي مميز";
@@ -341,11 +343,11 @@
                 document.getElementById('driver-badge-display').innerText = `مستواك: ${badgeTxt} (${data.completedCount} توصيلة)`;
 
                 container.innerHTML = '';
-                if(data.orders.length === 0) { container.innerHTML = '<p>لا توجد طلبات مسندة.</p>'; document.getElementById('map-container').classList.add('hidden'); return; }
+                if(data.orders.length === 0) { container.innerHTML = '<p>لا توجد طلبات مسندة إليك حالياً.</p>'; document.getElementById('map-container').classList.add('hidden'); return; }
 
                 data.orders.forEach(order => {
                     let actionsHtml = '';
-                    if(order.status === 'تم الإسناد للمندوب') {
+                    if(order.status.includes('تم الإسناد')) {
                         actionsHtml = `<button onclick="acceptOrder('${order.id}')" class="btn-success">استلام وبدء التتبع 📍</button>`;
                     } else if (order.status.includes('قيد التوصيل')) {
                         let msg = `أهلاً بك عميلنا العزيز 👋\nأنا المندوب: *${dName}* من فريق نعاون 🛵\n\nلقد استلمت طلبك رقم [ ${order.id} ] وأنا في طريقي الآن لتنفيذه!\n📍 التوصيل إلى: ${order.area}\nسأتواصل معك عند الوصول ✨`;
@@ -354,7 +356,7 @@
                             <div style="margin: 10px 0; background: #f1f8ff; padding: 10px; border-radius: 5px;">
                                 <p style="margin:0 0 5px 0;"><strong>تواصل مع العميل:</strong></p>
                                 <a href="tel:${order.phone}" style="display:inline-block; padding:8px 15px; background:#17a2b8; color:white; text-decoration:none; border-radius:5px; margin-left:5px;">📞 اتصال</a>
-                                <a href="${waLink}" target="_blank" style="display:inline-block; padding:8px 15px; background:#25D366; color:white; text-decoration:none; border-radius:5px;">💬 واتساب التوصيل</a>
+                                <a href="${waLink}" target="_blank" style="display:inline-block; padding:8px 15px; background:#25D366; color:white; text-decoration:none; border-radius:5px;">💬 واتساب</a>
                             </div>
                             <button onclick="completeOrder('${order.id}')" style="background:#dc3545;">تأكيد تسليم الطلب للعميل ✅</button>
                         `;
@@ -362,6 +364,8 @@
                     }
                     container.innerHTML += `<div style="border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:15px;"><h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${order.id}</h4><p style="margin:5px 0;"><strong>من:</strong> ${order.pickup} | <strong>إلى:</strong> ${order.area}</p><p style="margin:5px 0;"><strong>التفاصيل:</strong> ${order.details}</p>${actionsHtml}</div>`;
                 });
+            }).catch(err => {
+                container.innerHTML = '<p style="color:red;">حدث خطأ في الاتصال بالسيرفر.</p>';
             });
         }
 
@@ -369,13 +373,23 @@
             const dName = localStorage.getItem('driverName'); const dId = localStorage.getItem('driverId');
             let msg = `أهلاً بالإدارة!\nأنا المندوب: ${dName}\nقمت باستلام الطلب [ ${orderId} ] وبدأت التوصيل 📍`;
             window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
-            startDriverGPS(orderId);
+            
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'قيد التوصيل (المندوب في الطريق)', driverId: dId, driverName: dName }) }).then(() => fetchDriverOrders());
         }
 
+        // الكود السحري لإصلاح الخريطة للمندوب
         function startDriverGPS(orderId) {
-            document.getElementById('map-container').classList.remove('hidden');
-            if(!driverMap) { driverMap = L.map('driver-map').setView([23.2255, 56.5165], 14); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(driverMap); }
+            const mapCont = document.getElementById('map-container');
+            mapCont.classList.remove('hidden');
+            
+            if(!driverMap) { 
+                driverMap = L.map('driver-map').setView([23.2255, 56.5165], 14); 
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(driverMap); 
+            }
+            
+            // إجبار الخريطة على إعادة رسم نفسها
+            setTimeout(() => { driverMap.invalidateSize(); }, 500);
+            
             if ("geolocation" in navigator && !watchId) {
                 watchId = navigator.geolocation.watchPosition(pos => {
                     const lat = pos.coords.latitude; const lng = pos.coords.longitude;
@@ -420,7 +434,6 @@
                     const newContainer = document.getElementById('admin-new-orders'); const allContainer = document.getElementById('admin-all-orders');
                     newContainer.innerHTML = ''; allContainer.innerHTML = '';
                     
-                    // تحديث الإحصائيات (Chart.js)
                     renderCharts(data.allOrders, data.drivers);
 
                     if(data.newOrders.length === 0) newContainer.innerHTML = '<p style="color:#666;">لا توجد طلبات جديدة حالياً.</p>';
@@ -440,7 +453,6 @@
             }).finally(() => { isFetchingAdmin = false; });
         }
 
-        // دالة توليد الرسوم البيانية
         function renderCharts(orders, drivers) {
             let pCount = 0, iCount = 0, dCount = 0;
             orders.forEach(o => {
@@ -449,7 +461,6 @@
                 else iCount++;
             });
 
-            // ترتيب المناديب حسب الإنجاز وتأخذ أفضل 5
             drivers.sort((a,b) => b.load - a.load);
             let topDNames = drivers.slice(0,5).map(d => d.name);
             let topDLoads = drivers.slice(0,5).map(d => d.load);
@@ -459,8 +470,7 @@
             if(chart1) { chart1.data.datasets[0].data = [pCount, iCount, dCount]; chart1.update(); } 
             else {
                 chart1 = new Chart(document.getElementById('statusChart'), {
-                    type: 'doughnut',
-                    data: { labels: ['قيد المراجعة/الإسناد', 'قيد التوصيل', 'تم التسليم'], datasets: [{ data: [pCount, iCount, dCount], backgroundColor: ['#ffc107', '#17a2b8', '#28a745'] }] },
+                    type: 'doughnut', data: { labels: ['قيد المراجعة/الإسناد', 'قيد التوصيل', 'تم التسليم'], datasets: [{ data: [pCount, iCount, dCount], backgroundColor: ['#ffc107', '#17a2b8', '#28a745'] }] },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'حالة جميع الطلبات' } } }
                 });
             }
@@ -468,8 +478,7 @@
             if(chart2) { chart2.data.labels = topDNames; chart2.data.datasets[0].data = topDLoads; chart2.update(); }
             else {
                 chart2 = new Chart(document.getElementById('driversChart'), {
-                    type: 'bar',
-                    data: { labels: topDNames, datasets: [{ label: 'الطلبات المنجزة', data: topDLoads, backgroundColor: '#D4AF37' }] },
+                    type: 'bar', data: { labels: topDNames, datasets: [{ label: 'الطلبات المنجزة', data: topDLoads, backgroundColor: '#D4AF37' }] },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'أفضل المناديب (توصيلات ناجحة)' }, legend: {display:false} } }
                 });
             }
