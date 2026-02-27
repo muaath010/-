@@ -31,6 +31,12 @@
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;}
         .badge-wait { background: #fff3cd; color: #856404; } .badge-prog { background: #cce5ff; color: #004085; } .badge-done { background: #d4edda; color: #155724; }
         .auto-refresh-indicator { font-size: 12px; color: green; text-align: center; margin-top: -10px; margin-bottom: 10px; }
+        
+        /* تصميم النجوم التفاعلية */
+        .star-rating { display: flex; flex-direction: row-reverse; justify-content: center; gap: 5px; margin-bottom: 15px; }
+        .star-rating input { display: none; }
+        .star-rating label { font-size: 35px; color: #ddd; cursor: pointer; transition: 0.2s; }
+        .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: var(--primary-gold); }
     </style>
 </head>
 <body>
@@ -76,6 +82,18 @@
             <input type="text" id="pickup-loc" placeholder="مكان الاستلام (اسم المحل/المطعم)">
             <textarea id="order-details" placeholder="تفاصيل الطلب..."></textarea>
             <button onclick="submitOrder(event)">إرسال الطلب وإبلاغ الإدارة 📲</button>
+
+            <hr style="margin: 25px 0;">
+            <h4 class="section-title">⭐ تقييم الخدمة أو الشكاوى</h4>
+            <div class="star-rating">
+                <input type="radio" id="star5" name="rating" value="5"><label for="star5" title="ممتاز">★</label>
+                <input type="radio" id="star4" name="rating" value="4"><label for="star4" title="جيد جداً">★</label>
+                <input type="radio" id="star3" name="rating" value="3"><label for="star3" title="جيد">★</label>
+                <input type="radio" id="star2" name="rating" value="2"><label for="star2" title="مقبول">★</label>
+                <input type="radio" id="star1" name="rating" value="1"><label for="star1" title="سيء">★</label>
+            </div>
+            <textarea id="complaint-text" placeholder="اكتب تقييمك لمندوب، أو مقترحك، أو شكواك هنا..."></textarea>
+            <button onclick="submitFeedback(event)" style="background-color: #333;">إرسال للإدارة مباشرة 📩</button>
 
             <button onclick="logout()" class="btn-danger">تسجيل خروج 🚪</button>
         </div>
@@ -131,7 +149,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwauZZjU1eabj11xA86Iz-udJc4nlBk_WOQe0-iui_qU_EdQy2e7mKXj0QPzCqtlQdM/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyGNZcZyKP_crvtqUyAK8w2bV_eimKHW0cCFaoRyCiVkWhov2D0xycQY2mYq3hjiV5V/exec';
         const ADMIN_PHONE = "93516953";
         let watchId; 
         let adminRefreshInterval; 
@@ -197,7 +215,9 @@
                     `;
                     
                     if(data.activeOrder.status.includes('قيد التوصيل') && data.activeOrder.lat) {
-                        document.getElementById('customer-map-container').classList.remove('hidden');
+                        const mapContainer = document.getElementById('customer-map-container');
+                        mapContainer.classList.remove('hidden');
+                        
                         if(!customerMap) {
                             customerMap = L.map('customer-map').setView([data.activeOrder.lat, data.activeOrder.lng], 15);
                             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(customerMap);
@@ -206,6 +226,7 @@
                             customerMarker.setLatLng([data.activeOrder.lat, data.activeOrder.lng]);
                             customerMap.panTo([data.activeOrder.lat, data.activeOrder.lng]);
                         }
+                        setTimeout(() => { customerMap.invalidateSize(); }, 500);
                     } else { document.getElementById('customer-map-container').classList.add('hidden'); }
                 } else {
                     statusArea.innerHTML = '<p style="color:green; margin:0;">ليس لديك طلبات نشطة حالياً. اطلب الآن!</p>';
@@ -246,6 +267,32 @@
             }).finally(() => { btn.innerText = 'إرسال الطلب وإبلاغ الإدارة 📲'; btn.disabled = false; });
         }
 
+        // إرسال التقييم والشكاوى للإدارة
+        function submitFeedback(event) {
+            const text = document.getElementById('complaint-text').value;
+            let rating = 0;
+            const selectedStar = document.querySelector('input[name="rating"]:checked');
+            if (selectedStar) rating = selectedStar.value;
+
+            if (!rating && !text) { alert('الرجاء اختيار تقييم أو كتابة ملاحظة.'); return; }
+
+            const phone = localStorage.getItem('customerPhone');
+            const btn = event.target;
+            btn.innerText = 'جاري الإرسال... ⏳'; btn.disabled = true;
+
+            let starsStr = rating > 0 ? '⭐'.repeat(rating) : 'بدون تقييم نجوم';
+            let msg = `🚨 *تنبيه تقييم/شكوى من المنصة* 🚨\n\n📞 هاتف العميل: ${phone}\n⭐ التقييم: ${starsStr}\n💬 الرسالة: ${text}`;
+            window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
+
+            fetch(SCRIPT_URL, {
+                method: 'POST', body: JSON.stringify({ action: 'new_feedback', phone: phone, text: text, rating: rating })
+            }).then(() => {
+                alert('تم إرسال تقييمك بنجاح. نحن نهتم برأيك! ✨');
+                document.getElementById('complaint-text').value = '';
+                if(selectedStar) selectedStar.checked = false;
+            }).finally(() => { btn.innerText = 'إرسال للإدارة مباشرة 📩'; btn.disabled = false; });
+        }
+
         /* ================= المندوب ================= */
         let driverMap, driverMarker;
         function loginDriver(event) {
@@ -265,7 +312,7 @@
 
         function fetchDriverOrders() {
             const id = localStorage.getItem('driverId');
-            const dName = localStorage.getItem('driverName'); // جلب اسم المندوب
+            const dName = localStorage.getItem('driverName'); 
             const container = document.getElementById('driver-orders-list');
             container.innerHTML = '<p>جاري البحث...</p>';
 
@@ -279,7 +326,6 @@
                     if(order.status === 'تم الإسناد للمندوب') {
                         actionsHtml = `<button onclick="acceptOrder('${order.id}')" class="btn-success">استلام وبدء التتبع 📍</button>`;
                     } else if (order.status.includes('قيد التوصيل')) {
-                        // تجهيز رسالة الواتساب الذكية
                         let msg = `أهلاً بك عميلنا العزيز 👋\nأنا المندوب: *${dName}* من فريق نعاون 🛵\n\nلقد استلمت طلبك رقم [ ${order.id} ] وأنا في طريقي الآن لتنفيذه!\n\n📍 الاستلام من: ${order.pickup}\n📍 التوصيل إلى: ${order.area}\n📦 التفاصيل: ${order.details}\n\nسأتواصل معك عند الوصول، شكراً لثقتك بنا ✨`;
                         let waLink = `https://wa.me/968${order.phone}?text=${encodeURIComponent(msg)}`;
 
