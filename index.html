@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Na'awn Delivery Services</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Na'awn Delivery</title>
     <link rel="icon" href="https://i.imgur.com/OqQuD0p.png" type="image/png">
-    <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -20,13 +22,14 @@
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary-gold); }
         button { background-color: var(--primary-gold); color: var(--bg-white); border: none; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 15px; }
         button:hover { background-color: var(--dark-gold); }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; opacity: 0.7;}
         .btn-danger { background-color: #dc3545; margin-top: 20px;} .btn-danger:hover { background-color: #c82333; }
         .btn-success { background-color: #28a745; } .btn-success:hover { background-color: #218838; }
         .btn-back { background-color: transparent; color: #666; border: 1px solid #ddd; margin-bottom: 15px; margin-top: 0;} .btn-back:hover { background-color: #eee; }
         .btn-location { background-color: #17a2b8; margin-top: 0; margin-bottom: 10px;}
-        .hidden { display: none; }
-        .map-box { height: 300px; border-radius: 8px; margin-top: 15px; z-index: 1;}
+        .btn-smart { background-color: #6f42c1; font-size: 14px; padding: 10px; margin-top: 5px; } .btn-smart:hover { background-color: #59339d; }
+        .hidden { display: none !important; }
+        .map-box { height: 300px; border-radius: 8px; margin-top: 15px; z-index: 1; width: 100%; background: #e9ecef;}
         .section-title { color: var(--primary-gold); border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 25px;}
         .footer { text-align: center; padding: 20px; font-size: 13px; color: #aaa; margin-top: auto; border-top: 1px solid #eee; background: var(--bg-white); }
         .footer span { cursor: pointer; margin: 0 10px; transition: color 0.3s; } .footer span:hover { color: var(--primary-gold); }
@@ -38,16 +41,15 @@
         .star-rating label { font-size: 35px; color: #ddd; cursor: pointer; transition: 0.2s; }
         .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: var(--primary-gold); }
         .eta-box { background: #e8f5e9; border: 1px solid #c8e6c9; padding: 10px; border-radius: 8px; margin-top: 10px; text-align: center; color: #2e7d32; font-weight: bold;}
-        .driver-badge { display: inline-block; padding: 5px 15px; background: #333; color: var(--primary-gold); border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
+        .driver-badge { display: inline-block; padding: 5px 15px; background: #333; color: var(--primary-gold); border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 15px;}
         .chart-container { position: relative; height: 250px; width: 100%; margin-top: 15px; margin-bottom: 30px;}
+        .coupon-box { display: flex; gap: 10px; } .coupon-box input { flex: 2; margin: 0;} .coupon-box button { flex: 1; margin: 0; background: #333; }
+        .success-text { color: green; font-weight: bold; font-size: 14px; margin-top: 5px; display: block;}
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <img src="https://i.imgur.com/OqQuD0p.png" alt="شعار نعاون">
-        Na'awn Delivery
-    </div>
+    <div class="header"><img src="https://i.imgur.com/OqQuD0p.png" alt="شعار نعاون">Na'awn Delivery</div>
 
     <div class="container">
         <div id="customer-login" class="card section">
@@ -74,11 +76,6 @@
                 <div id="customer-map" class="map-box"></div>
             </div>
 
-            <div id="customer-history-area" class="hidden" style="margin-top: 20px;">
-                <h4 class="section-title">📦 طلباتي السابقة</h4>
-                <div id="customer-history-list"></div>
-            </div>
-
             <hr style="margin: 25px 0;">
             <h4 class="section-title">➕ طلب توصيل جديد</h4>
             <input type="text" id="cust-city" placeholder="الولاية (مثال: عبري، نزوى)">
@@ -87,20 +84,15 @@
             <p id="loc-status" style="font-size: 12px; color: green; margin: -5px 0 10px 0; text-align: center; display: none;">✅ تم تحديد موقعك بنجاح</p>
             <input type="text" id="pickup-loc" placeholder="مكان الاستلام (اسم المحل/المطعم)">
             <textarea id="order-details" placeholder="تفاصيل الطلب..."></textarea>
-            <button onclick="submitOrder(event)">إرسال الطلب وإبلاغ الإدارة 📲</button>
-
-            <hr style="margin: 25px 0;">
-            <h4 class="section-title">⭐ تقييم الخدمة أو الشكاوى</h4>
-            <div class="star-rating">
-                <input type="radio" id="star5" name="rating" value="5"><label for="star5" title="ممتاز">★</label>
-                <input type="radio" id="star4" name="rating" value="4"><label for="star4" title="جيد جداً">★</label>
-                <input type="radio" id="star3" name="rating" value="3"><label for="star3" title="جيد">★</label>
-                <input type="radio" id="star2" name="rating" value="2"><label for="star2" title="مقبول">★</label>
-                <input type="radio" id="star1" name="rating" value="1"><label for="star1" title="سيء">★</label>
+            
+            <label style="font-size: 14px; color: #666; font-weight: bold;">🎁 كود الخصم (اختياري):</label>
+            <div class="coupon-box">
+                <input type="text" id="promo-code" placeholder="أدخل الكود هنا">
+                <button onclick="applyCoupon(event)" type="button">تطبيق</button>
             </div>
-            <textarea id="complaint-text" placeholder="اكتب تقييمك لمندوب، أو مقترحك، أو شكواك هنا..."></textarea>
-            <button onclick="submitFeedback(event)" style="background-color: #333;">إرسال للإدارة مباشرة 📩</button>
+            <span id="coupon-msg" class="success-text hidden"></span>
 
+            <button onclick="submitOrder(event)" id="submit-order-btn">إرسال الطلب وإبلاغ الإدارة 📲</button>
             <button onclick="logout()" class="btn-danger">تسجيل خروج 🚪</button>
         </div>
 
@@ -118,15 +110,14 @@
                 <h3 id="driver-welcome-msg" style="margin-bottom: 5px;">أهلاً بك 🛵</h3>
                 <div id="driver-badge-display" class="driver-badge">🌟 جاري حساب مستواك...</div>
             </div>
-            <button onclick="fetchDriverOrders()">تحديث طلباتي 🔄</button>
+            <button onclick="fetchDriverOrders(true)" style="background:#17a2b8; margin-bottom:10px;">تحديث وتفعيل جرس الطلبات 🔔</button>
             
             <div id="driver-orders-list"></div>
             
-            <div id="map-container" class="hidden">
-                <h4 class="section-title">📍 خريطتك (مشارَكة مع العميل)</h4>
+            <div id="map-container" class="hidden" style="margin-top:20px;">
+                <h4 class="section-title">📍 خريطتك المباشرة</h4>
                 <div id="driver-map" class="map-box"></div>
             </div>
-
             <button onclick="logout()" class="btn-danger">تسجيل خروج 🚪</button>
         </div>
 
@@ -158,20 +149,30 @@
     </div>
 
     <div class="footer" id="main-footer">
-        <span onclick="showSection('driver-login')">بوابة الموظفين</span> | <span onclick="showSection('admin-login')">لوحة الإدارة</span>
+        <span onclick="showSection('driver-login')">الموظفين</span> | <span onclick="showSection('admin-login')">الإدارة</span>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpV1roeMFS4mx6-v2f9NUn1EtYAGBD3dnXVsk5jvUrBaKwbR-9EM_VUYxyW77VaYrN/exec'; // رابطك هنا
+        // ⚠️ تأكد أن هذا الرابط هو رابطك الفعّال!
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2bcE_tZNoDDuTVK8-ERfOpjsz3V1-gbikH1i5SoeW9JpdB8Xa5_Fy3NHwHWHeQUZG/exec'; 
         const ADMIN_PHONE = "93516953";
         let watchId; let adminRefreshInterval; 
-        let tempCustLat = null; let tempCustLng = null;
-        let chart1, chart2;
+        let tempCustLat = null; let tempCustLng = null; let activePromoCode = "";
+        let chart1, chart2; let availableDriversData = [];
+
+        // --- نظام التنبيهات الصوتية ---
+        // صوت الإدارة (جرس قوي للطلبات الجديدة)
+        const adminAudio = new Audio('https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg');
+        // صوت المندوب (رنين هاتفي عند الإسناد)
+        const driverAudio = new Audio('https://actions.google.com/sounds/v1/communications/incoming_phone_call.ogg');
+        let lastNewOrdersCount = 0;
+        let lastAssignedOrdersCount = 0;
+        let isAudioAllowed = false; // المتصفح يمنع الصوت حتى يضغط المستخدم زر
 
         window.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('adminLogged') === 'true') { showSection('admin-dashboard'); startAdminAutoRefresh(); }
-            else if (localStorage.getItem('driverId')) { document.getElementById('driver-welcome-msg').innerText = `أهلاً بك، ${localStorage.getItem('driverName')}`; showSection('driver-dashboard'); fetchDriverOrders(); }
+            else if (localStorage.getItem('driverId')) { document.getElementById('driver-welcome-msg').innerText = `أهلاً بك، ${localStorage.getItem('driverName')}`; showSection('driver-dashboard'); fetchDriverOrders(false); }
             else if (localStorage.getItem('customerPhone')) { showSection('customer-dashboard'); checkMyOrder(); }
         });
 
@@ -183,212 +184,148 @@
             if(sectionId !== 'admin-dashboard') stopAdminAutoRefresh();
         }
 
-        function logout() {
-            if(confirm("هل أنت متأكد من تسجيل الخروج؟")) {
-                localStorage.clear(); 
-                if(watchId && navigator.geolocation) navigator.geolocation.clearWatch(watchId); 
-                stopAdminAutoRefresh(); showSection('customer-login'); 
-            }
-        }
+        function logout() { if(confirm("تسجيل الخروج؟")) { localStorage.clear(); if(watchId && navigator.geolocation) navigator.geolocation.clearWatch(watchId); stopAdminAutoRefresh(); showSection('customer-login'); } }
 
         function calculateDistance(lat1, lon1, lat2, lon2) {
             if(!lat1 || !lon1 || !lat2 || !lon2) return null;
             const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
             const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return (R * c).toFixed(1); 
+            return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1); 
         }
 
         /* ================= العميل ================= */
-        function loginCustomer() {
-            const phone = document.getElementById('cust-phone').value;
-            if(phone.length >= 8) { localStorage.setItem('customerPhone', phone); showSection('customer-dashboard'); checkMyOrder(); }
-            else { alert('الرجاء إدخال رقم هاتف صحيح'); }
+        function loginCustomer() { const p = document.getElementById('cust-phone').value; if(p.length >= 8) { localStorage.setItem('customerPhone', p); showSection('customer-dashboard'); checkMyOrder(); } else alert('رقم هاتف غير صحيح'); }
+
+        function getCustomerLocation(e) {
+            e.preventDefault(); const btn = document.getElementById('btn-get-loc'); btn.innerText = 'جاري التحديد... ⏳';
+            if ("geolocation" in navigator) { navigator.geolocation.getCurrentPosition(pos => { tempCustLat = pos.coords.latitude; tempCustLng = pos.coords.longitude; btn.classList.add('hidden'); document.getElementById('loc-status').style.display = 'block'; }, err => { alert("يرجى السماح بالوصول للموقع."); btn.innerText = '📍 حدد موقعي'; }); }
         }
 
-        function getCustomerLocation(event) {
-            event.preventDefault();
-            const btn = document.getElementById('btn-get-loc'); const statusText = document.getElementById('loc-status');
-            btn.innerText = 'جاري تحديد الموقع... ⏳';
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    tempCustLat = pos.coords.latitude; tempCustLng = pos.coords.longitude;
-                    btn.classList.add('hidden'); statusText.style.display = 'block';
-                }, err => { alert("يرجى السماح بالوصول للموقع."); btn.innerText = '📍 حدد موقعي'; });
-            } else { alert("المتصفح لا يدعم تحديد الموقع."); btn.innerText = '📍 حدد موقعي'; }
+        function applyCoupon(event) {
+            const code = document.getElementById('promo-code').value; if(!code) return;
+            const btn = event.target; btn.innerText = '⏳'; btn.disabled = true;
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'check_coupon', code: code }) })
+            .then(res => res.json()).then(data => {
+                const msgBox = document.getElementById('coupon-msg'); msgBox.classList.remove('hidden');
+                if(data.status === 'valid') { msgBox.innerText = `✅ تم تفعيل خصم ${data.discount}%!`; activePromoCode = code; document.getElementById('promo-code').disabled = true;}
+                else { msgBox.innerText = '❌ الكود غير صحيح أو منتهي.'; msgBox.style.color = 'red'; activePromoCode = ""; }
+            }).finally(() => { btn.innerText = 'تطبيق'; btn.disabled = false; });
         }
 
         let customerMap, customerMarker;
         function checkMyOrder() {
-            const phone = localStorage.getItem('customerPhone');
-            const statusArea = document.getElementById('customer-status-area');
-            const historyArea = document.getElementById('customer-history-area'); const historyList = document.getElementById('customer-history-list');
+            const phone = localStorage.getItem('customerPhone'); const statusArea = document.getElementById('customer-status-area');
             statusArea.innerHTML = 'جاري البحث... ⏳';
-
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'check_customer_order', phone: phone }) })
             .then(res => res.json()).then(data => {
                 if(data.status === "success" && data.activeOrder) {
-                    let badgeClass = data.activeOrder.status.includes('انتظار') || data.activeOrder.status.includes('مراجعة') ? 'badge-wait' : 'badge-prog';
-                    statusArea.innerHTML = `
-                        <h4 style="margin-top:0; color:var(--primary-gold);">طلبك الحالي النشط</h4>
-                        <strong>رقم الطلب:</strong> ${data.activeOrder.id}<br>
-                        <strong>الحالة:</strong> <span class="badge ${badgeClass}">${data.activeOrder.status}</span><br>
-                        <p style="font-size:13px; color:#666; margin-top:5px;">التفاصيل: ${data.activeOrder.details}</p>
-                    `;
-                    
+                    let bc = data.activeOrder.status.includes('انتظار') || data.activeOrder.status.includes('مراجعة') ? 'badge-wait' : 'badge-prog';
+                    statusArea.innerHTML = `<h4 style="margin-top:0; color:var(--primary-gold);">طلبك الحالي</h4><strong>رقم:</strong> ${data.activeOrder.id}<br><strong>الحالة:</strong> <span class="badge ${bc}">${data.activeOrder.status}</span><br><p style="font-size:13px; color:#666; margin-top:5px;">التفاصيل: ${data.activeOrder.details}</p>`;
                     if(data.activeOrder.status.includes('قيد التوصيل') && data.activeOrder.lat) {
-                        const mapContainer = document.getElementById('customer-map-container');
-                        const etaBox = document.getElementById('eta-display');
-                        mapContainer.classList.remove('hidden');
-
+                        document.getElementById('customer-map-container').classList.remove('hidden');
                         if(data.activeOrder.custLat && data.activeOrder.custLng) {
                             let dist = calculateDistance(data.activeOrder.lat, data.activeOrder.lng, data.activeOrder.custLat, data.activeOrder.custLng);
-                            if(dist) {
-                                let timeMins = Math.ceil((dist / 40) * 60);
-                                etaBox.classList.remove('hidden');
-                                etaBox.innerHTML = `المسافة: ${dist} كم 🛵 | الوقت المتوقع: ${timeMins} دقيقة ⏱️`;
-                            }
+                            if(dist) { document.getElementById('eta-display').classList.remove('hidden'); document.getElementById('eta-display').innerHTML = `المسافة: ${dist} كم 🛵 | الوقت المتوقع: ${Math.ceil((dist/40)*60)} دقيقة ⏱️`; }
                         }
-                        
-                        if(!customerMap) {
-                            customerMap = L.map('customer-map').setView([data.activeOrder.lat, data.activeOrder.lng], 15);
-                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(customerMap);
-                            customerMarker = L.marker([data.activeOrder.lat, data.activeOrder.lng]).addTo(customerMap).bindPopup('المندوب هنا 🛵').openPopup();
-                        } else {
-                            customerMarker.setLatLng([data.activeOrder.lat, data.activeOrder.lng]); customerMap.panTo([data.activeOrder.lat, data.activeOrder.lng]);
-                        }
-                        setTimeout(() => { customerMap.invalidateSize(); }, 500);
-                    } else { document.getElementById('customer-map-container').classList.add('hidden'); document.getElementById('eta-display').classList.add('hidden'); }
-                } else {
-                    statusArea.innerHTML = '<p style="color:green; margin:0;">ليس لديك طلبات نشطة حالياً. اطلب الآن!</p>';
-                    document.getElementById('customer-map-container').classList.add('hidden');
-                }
-
-                if(data.historyOrders && data.historyOrders.length > 0) {
-                    historyArea.classList.remove('hidden'); historyList.innerHTML = '';
-                    data.historyOrders.forEach(o => { historyList.innerHTML += `<div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;"><strong>${o.id}</strong> - <span class="badge badge-done">${o.status}</span><br><span style="color:#666;">من: ${o.pickup} | التفاصيل: ${o.details}</span></div>`; });
-                } else { historyArea.classList.add('hidden'); }
+                        if(!customerMap) { customerMap = L.map('customer-map').setView([data.activeOrder.lat, data.activeOrder.lng], 15); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(customerMap); customerMarker = L.marker([data.activeOrder.lat, data.activeOrder.lng]).addTo(customerMap).bindPopup('المندوب 🛵').openPopup(); } 
+                        else { customerMarker.setLatLng([data.activeOrder.lat, data.activeOrder.lng]); customerMap.panTo([data.activeOrder.lat, data.activeOrder.lng]); }
+                        setTimeout(() => customerMap.invalidateSize(), 500);
+                    } else { document.getElementById('customer-map-container').classList.add('hidden'); }
+                } else statusArea.innerHTML = '<p style="color:green; margin:0;">ليس لديك طلبات نشطة. اطلب الآن!</p>';
             });
         }
 
-        function submitOrder(event) {
-            const payload = {
-                action: 'new_order', phone: localStorage.getItem('customerPhone'),
-                city: document.getElementById('cust-city').value, area: document.getElementById('cust-area').value,
-                pickup: document.getElementById('pickup-loc').value, details: document.getElementById('order-details').value,
-                custLat: tempCustLat, custLng: tempCustLng
-            };
-            if(!payload.city || !payload.area || !payload.pickup) { alert('الرجاء تعبئة تفاصيل الطلب'); return; }
-
-            const btn = event.target; btn.innerText = 'جاري التسجيل...'; btn.disabled = true;
-
-            let msg = `✨ أهلاً إدارة فريق نعاون!\nيوجد طلب توصيل جديد.\n📍 ${payload.city} - ${payload.area}\n🏪 من: ${payload.pickup}\n📞 العميل: ${payload.phone}\n${payload.custLat ? '📍 (تم إرفاق موقع العميل)' : ''}`;
+        function submitOrder(e) {
+            const payload = { action: 'new_order', phone: localStorage.getItem('customerPhone'), city: document.getElementById('cust-city').value, area: document.getElementById('cust-area').value, pickup: document.getElementById('pickup-loc').value, details: document.getElementById('order-details').value, custLat: tempCustLat, custLng: tempCustLng, promoCode: activePromoCode };
+            if(!payload.city || !payload.area || !payload.pickup) { alert('الرجاء تعبئة البيانات'); return; }
+            const btn = e.target; btn.innerText = 'جاري التسجيل...'; btn.disabled = true;
+            let msg = `✨ طلب توصيل جديد!\n📍 ${payload.city} - ${payload.area}\n🏪 من: ${payload.pickup}\n📞 العميل: ${payload.phone}\n${activePromoCode ? '🎁 كود الخصم: '+activePromoCode : ''}`;
             window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
-
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) }).then(() => {
-                alert('تم إرسال الطلب للإدارة!'); checkMyOrder();
-                document.getElementById('pickup-loc').value = ''; document.getElementById('order-details').value = '';
-                document.getElementById('btn-get-loc').classList.remove('hidden'); document.getElementById('loc-status').style.display = 'none';
-                tempCustLat = null; tempCustLng = null;
+                alert('تم إرسال الطلب!'); checkMyOrder();
+                document.getElementById('pickup-loc').value = ''; document.getElementById('order-details').value = ''; document.getElementById('promo-code').value = ''; activePromoCode = ""; document.getElementById('coupon-msg').classList.add('hidden'); document.getElementById('promo-code').disabled = false;
             }).finally(() => { btn.innerText = 'إرسال الطلب وإبلاغ الإدارة 📲'; btn.disabled = false; });
-        }
-
-        function submitFeedback(event) {
-            const text = document.getElementById('complaint-text').value; let rating = 0;
-            const selectedStar = document.querySelector('input[name="rating"]:checked');
-            if (selectedStar) rating = selectedStar.value;
-            if (!rating && !text) { alert('الرجاء اختيار التقييم.'); return; }
-
-            const phone = localStorage.getItem('customerPhone'); const btn = event.target; btn.innerText = 'جاري الإرسال... ⏳'; btn.disabled = true;
-
-            let starsStr = rating > 0 ? '⭐'.repeat(rating) : 'بدون تقييم نجوم';
-            let msg = `🚨 *تنبيه تقييم/شكوى* 🚨\n📞 هاتف العميل: ${phone}\n⭐ التقييم: ${starsStr}\n💬 الرسالة: ${text}`;
-            window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
-
-            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'new_feedback', phone: phone, text: text, rating: rating }) }).then(() => {
-                alert('تم التقييم بنجاح. نحن نهتم برأيك! ✨'); document.getElementById('complaint-text').value = ''; if(selectedStar) selectedStar.checked = false;
-            }).finally(() => { btn.innerText = 'إرسال للإدارة مباشرة 📩'; btn.disabled = false; });
         }
 
         /* ================= المندوب ================= */
         let driverMap, driverMarker;
-        function loginDriver(event) {
-            const id = document.getElementById('drv-id').value; const pass = document.getElementById('drv-pass').value;
-            if(!id || !pass) { alert('الرجاء إدخال البيانات'); return; }
 
-            const btn = event.target; btn.innerText = 'جاري التحقق...'; btn.disabled = true;
+        function loginDriver(e) {
+            const id = document.getElementById('drv-id').value; const pass = document.getElementById('drv-pass').value;
+            if(!id || !pass) return;
+            const btn = e.target; btn.innerText = 'جاري التحقق...'; btn.disabled = true;
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'login_driver', id: id, pass: pass }) })
             .then(res => res.json()).then(data => {
-                if(data.status === 'success') {
-                    localStorage.setItem('driverId', id); localStorage.setItem('driverName', data.name);
-                    document.getElementById('driver-welcome-msg').innerText = `أهلاً بك، ${data.name} 🛵`;
-                    showSection('driver-dashboard'); fetchDriverOrders();
-                } else { alert('بيانات غير صحيحة!'); }
-            }).catch(err => alert('خطأ')).finally(() => { btn.innerText = 'تسجيل الدخول'; btn.disabled = false; });
+                if(data.status === 'success') { localStorage.setItem('driverId', id); localStorage.setItem('driverName', data.name); document.getElementById('driver-welcome-msg').innerText = `أهلاً بك، ${data.name} 🛵`; showSection('driver-dashboard'); fetchDriverOrders(true); } 
+                else alert('بيانات غير صحيحة!');
+            }).finally(() => { btn.innerText = 'تسجيل الدخول'; btn.disabled = false; });
         }
 
-        function fetchDriverOrders() {
+        function fetchDriverOrders(userClicked = false) {
+            if(userClicked) { isAudioAllowed = true; } // السماح بالصوت بعد ضغط المستخدم
             const id = localStorage.getItem('driverId'); const dName = localStorage.getItem('driverName'); 
-            const container = document.getElementById('driver-orders-list'); container.innerHTML = '<p>جاري البحث...</p>';
+            const container = document.getElementById('driver-orders-list'); 
+            container.innerHTML = '<p>جاري البحث عن طلباتك في قاعدة البيانات... ⏳</p>';
 
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'get_driver_data', driverId: id }) })
             .then(res => res.json()).then(data => {
-                if(data.status !== "success") { container.innerHTML = '<p>خطأ في استرجاع البيانات.</p>'; return; }
-
-                let badgeTxt = "🛵 مبتدئ";
-                if(data.completedCount >= 100) badgeTxt = "💎 ماسي بطل";
-                else if(data.completedCount >= 50) badgeTxt = "🥇 ذهبي مميز";
-                else if(data.completedCount >= 30) badgeTxt = "🥈 فضي محترف";
-                else if(data.completedCount >= 10) badgeTxt = "🥉 برونزي سريع";
+                if(data.status !== "success") { container.innerHTML = '<p style="color:red;">خطأ في جلب البيانات.</p>'; return; }
+                
+                let badgeTxt = data.completedCount >= 100 ? "💎 ماسي" : (data.completedCount >= 50 ? "🥇 ذهبي" : (data.completedCount >= 30 ? "🥈 فضي" : (data.completedCount >= 10 ? "🥉 برونزي" : "🛵 مبتدئ")));
                 document.getElementById('driver-badge-display').innerText = `مستواك: ${badgeTxt} (${data.completedCount} توصيلة)`;
-
                 container.innerHTML = '';
-                if(data.orders.length === 0) { container.innerHTML = '<p>لا توجد طلبات مسندة إليك حالياً.</p>'; document.getElementById('map-container').classList.add('hidden'); return; }
+                
+                // تشغيل جرس التنبيه للمندوب إذا كان هناك طلب مسند جديد
+                let assignedOnly = data.orders.filter(o => o.status.includes('تم الإسناد'));
+                if(assignedOnly.length > lastAssignedOrdersCount && isAudioAllowed) { driverAudio.play().catch(e=>console.log(e)); }
+                lastAssignedOrdersCount = assignedOnly.length;
+
+                if(data.orders.length === 0) { 
+                    container.innerHTML = '<p style="color:green; font-weight:bold; font-size:16px;">✅ لا توجد طلبات مسندة لك في الوقت الحالي. (استرح قليلاً!)</p>'; 
+                    document.getElementById('map-container').classList.add('hidden'); 
+                    return; 
+                }
 
                 data.orders.forEach(order => {
                     let actionsHtml = '';
                     if(order.status.includes('تم الإسناد')) {
                         actionsHtml = `<button onclick="acceptOrder('${order.id}')" class="btn-success">استلام وبدء التتبع 📍</button>`;
                     } else if (order.status.includes('قيد التوصيل')) {
-                        let msg = `أهلاً بك عميلنا العزيز 👋\nأنا المندوب: *${dName}* من فريق نعاون 🛵\n\nلقد استلمت طلبك رقم [ ${order.id} ] وأنا في طريقي الآن لتنفيذه!\n📍 التوصيل إلى: ${order.area}\nسأتواصل معك عند الوصول ✨`;
-                        let waLink = `https://wa.me/968${order.phone}?text=${encodeURIComponent(msg)}`;
+                        let waLink = `https://wa.me/968${order.phone}?text=أهلاً عميلنا العزيز، أنا المندوب في طريقي إليك 🛵`;
                         actionsHtml = `
                             <div style="margin: 10px 0; background: #f1f8ff; padding: 10px; border-radius: 5px;">
-                                <p style="margin:0 0 5px 0;"><strong>تواصل مع العميل:</strong></p>
-                                <a href="tel:${order.phone}" style="display:inline-block; padding:8px 15px; background:#17a2b8; color:white; text-decoration:none; border-radius:5px; margin-left:5px;">📞 اتصال</a>
+                                <a href="tel:${order.phone}" style="display:inline-block; padding:8px 15px; background:#17a2b8; color:white; text-decoration:none; border-radius:5px;">📞 اتصال</a>
                                 <a href="${waLink}" target="_blank" style="display:inline-block; padding:8px 15px; background:#25D366; color:white; text-decoration:none; border-radius:5px;">💬 واتساب</a>
                             </div>
                             <button onclick="completeOrder('${order.id}')" style="background:#dc3545;">تأكيد تسليم الطلب للعميل ✅</button>
                         `;
-                        startDriverGPS(order.id);
+                        // تشغيل الخريطة بشكل آمن
+                        setTimeout(() => { startDriverGPS(order.id); }, 1000);
                     }
-                    container.innerHTML += `<div style="border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:15px;"><h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${order.id}</h4><p style="margin:5px 0;"><strong>من:</strong> ${order.pickup} | <strong>إلى:</strong> ${order.area}</p><p style="margin:5px 0;"><strong>التفاصيل:</strong> ${order.details}</p>${actionsHtml}</div>`;
+                    container.innerHTML += `<div style="border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:15px;"><h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${order.id}</h4><p style="margin:5px 0;"><strong>من:</strong> ${order.pickup} | <strong>إلى:</strong> ${order.area}</p>${actionsHtml}</div>`;
                 });
             }).catch(err => {
-                container.innerHTML = '<p style="color:red;">حدث خطأ في الاتصال بالسيرفر.</p>';
+                container.innerHTML = '<p style="color:red; font-weight:bold;">⚠️ تعذر الاتصال بجوجل شيت. يرجى التحديث لاحقاً.</p>';
             });
         }
 
         function acceptOrder(orderId) {
             const dName = localStorage.getItem('driverName'); const dId = localStorage.getItem('driverId');
-            let msg = `أهلاً بالإدارة!\nأنا المندوب: ${dName}\nقمت باستلام الطلب [ ${orderId} ] وبدأت التوصيل 📍`;
-            window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
-            
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'قيد التوصيل (المندوب في الطريق)', driverId: dId, driverName: dName }) }).then(() => fetchDriverOrders());
         }
 
-        // الكود السحري لإصلاح الخريطة للمندوب
         function startDriverGPS(orderId) {
             const mapCont = document.getElementById('map-container');
             mapCont.classList.remove('hidden');
             
+            // تهيئة الخريطة مرة واحدة فقط
             if(!driverMap) { 
                 driverMap = L.map('driver-map').setView([23.2255, 56.5165], 14); 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(driverMap); 
             }
             
-            // إجبار الخريطة على إعادة رسم نفسها
-            setTimeout(() => { driverMap.invalidateSize(); }, 500);
+            // إجبار الخريطة على تحديث حجمها (هذا يمنع الشاشة الرمادية)
+            driverMap.invalidateSize();
             
             if ("geolocation" in navigator && !watchId) {
                 watchId = navigator.geolocation.watchPosition(pos => {
@@ -405,7 +342,7 @@
                 if(watchId && navigator.geolocation) { navigator.geolocation.clearWatch(watchId); watchId = null; }
                 document.getElementById('map-container').classList.add('hidden');
                 fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم التسليم' }) }).then(() => {
-                    alert('شكراً لك! تم إغلاق الطلب بنجاح.'); fetchDriverOrders();
+                    alert('شكراً لك! تم إغلاق الطلب.'); fetchDriverOrders();
                 });
             }
         }
@@ -413,12 +350,12 @@
         /* ================= الإدارة ================= */
         function loginAdmin(event) { 
             const user = document.getElementById('adm-user').value; const pass = document.getElementById('adm-pass').value;
-            if(!user || !pass) { alert('الرجاء إدخال البيانات'); return; }
-            const btn = event.target; btn.innerText = 'جاري التحقق...'; btn.disabled = true;
+            if(!user || !pass) return;
+            const btn = event.target; btn.innerText = '⏳'; btn.disabled = true;
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'login_admin', user: user, pass: pass }) })
             .then(res => res.json()).then(data => {
-                if(data.status === 'success') { localStorage.setItem('adminLogged', 'true'); showSection('admin-dashboard'); startAdminAutoRefresh(); } 
-                else { alert('بيانات خاطئة!'); }
+                if(data.status === 'success') { localStorage.setItem('adminLogged', 'true'); isAudioAllowed = true; showSection('admin-dashboard'); startAdminAutoRefresh(); } 
+                else alert('خطأ!');
             }).finally(() => { btn.innerText = 'دخول للإدارة'; btn.disabled = false; });
         }
 
@@ -433,24 +370,63 @@
                 if(!document.getElementById('admin-dashboard').classList.contains('hidden')){
                     const newContainer = document.getElementById('admin-new-orders'); const allContainer = document.getElementById('admin-all-orders');
                     newContainer.innerHTML = ''; allContainer.innerHTML = '';
+                    availableDriversData = data.drivers; 
+                    
+                    // تشغيل التنبيه الصوتي إذا زاد عدد الطلبات الجديدة
+                    if(data.newOrders.length > lastNewOrdersCount && isAudioAllowed) { adminAudio.play().catch(e=>console.log(e)); }
+                    lastNewOrdersCount = data.newOrders.length;
                     
                     renderCharts(data.allOrders, data.drivers);
 
-                    if(data.newOrders.length === 0) newContainer.innerHTML = '<p style="color:#666;">لا توجد طلبات جديدة حالياً.</p>';
+                    if(data.newOrders.length === 0) newContainer.innerHTML = '<p style="color:#666;">لا توجد طلبات جديدة.</p>';
                     else {
-                        let opts = '<option value="">اختر المندوب...</option>';
-                        data.drivers.forEach(d => opts += `<option value="${d.id}" data-name="${d.name}">${d.name}</option>`);
+                        let opts = '<option value="">اختر المندوب يدوياً...</option>';
+                        data.drivers.forEach(d => opts += `<option value="${d.id}" data-name="${d.name}">${d.name} (طلباته الحالية: ${d.load})</option>`);
                         data.newOrders.forEach(o => {
-                            newContainer.innerHTML += `<div style="border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:8px; border-right: 5px solid var(--primary-gold); background:#fff;"><h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${o.id}</h4><p style="margin:5px 0;"><strong>المنطقة:</strong> ${o.city} - ${o.area}</p><p style="margin:5px 0;"><strong>الاستلام من:</strong> ${o.pickup}</p><p style="margin:5px 0;"><strong>التفاصيل:</strong> ${o.details}</p><p style="margin:5px 0;"><strong>العميل:</strong> <a href="https://wa.me/968${o.phone}" target="_blank" style="color: green; text-decoration: none; font-weight:bold;">💬 ${o.phone}</a></p><hr style="border:0; border-top:1px solid #eee; margin:15px 0;"><select id="driver-select-${o.id}" style="margin-bottom:10px;">${opts}</select><button onclick="assignOrder('${o.id}', '${o.phone}', event)" style="background:var(--primary-gold);">إسناد وإبلاغ العميل 📲</button></div>`;
+                            newContainer.innerHTML += `
+                                <div style="border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:8px; border-right: 5px solid var(--primary-gold); background:#fff;">
+                                    <h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${o.id}</h4>
+                                    <p style="margin:5px 0;"><strong>المنطقة:</strong> ${o.city} - ${o.area}</p>
+                                    <p style="margin:5px 0;"><strong>الاستلام من:</strong> ${o.pickup}</p>
+                                    ${o.promoCode ? `<p style="margin:5px 0; color:green;"><strong>🎁 كود الخصم المطبق:</strong> ${o.promoCode}</p>` : ''}
+                                    <p style="margin:5px 0;"><strong>العميل:</strong> <a href="https://wa.me/968${o.phone}" target="_blank" style="color: green; text-decoration: none; font-weight:bold;">💬 ${o.phone}</a></p>
+                                    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+                                    <div style="display:flex; flex-direction:column; gap:5px;">
+                                        <button onclick="autoAssignOrder('${o.id}', '${o.phone}')" class="btn-smart">🪄 إسناد ذكي (لأقل مندوب ضغطاً)</button>
+                                        <select id="driver-select-${o.id}">${opts}</select>
+                                        <button onclick="assignOrder('${o.id}', '${o.phone}', event)">إسناد يدوي 📲</button>
+                                    </div>
+                                </div>
+                            `;
                         });
                     }
 
                     data.allOrders.reverse().forEach(o => {
                         let badgeClass = o.status.includes('انتظار') || o.status.includes('مراجعة') ? 'badge-wait' : (o.status.includes('تم التسليم') ? 'badge-done' : 'badge-prog');
-                        allContainer.innerHTML += `<div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;"><strong>${o.id}</strong> - <span class="badge ${badgeClass}">${o.status}</span><p style="margin:5px 0; color:#555;">المنطقة: ${o.area} | التفاصيل: ${o.details} ${o.driverName ? '<br><span style="color:var(--primary-gold)">المندوب: '+o.driverName+'</span>' : ''}</p></div>`;
+                        allContainer.innerHTML += `<div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;"><strong>${o.id}</strong> - <span class="badge ${badgeClass}">${o.status}</span><p style="margin:5px 0; color:#555;">المنطقة: ${o.area} ${o.driverName ? '<br><span style="color:var(--primary-gold)">المندوب: '+o.driverName+'</span>' : ''}</p></div>`;
                     });
                 }
             }).finally(() => { isFetchingAdmin = false; });
+        }
+
+        function autoAssignOrder(orderId, phone) {
+            if(availableDriversData.length === 0) { alert('لا يوجد مناديب مسجلين!'); return; }
+            let bestDriver = availableDriversData.reduce((prev, curr) => (prev.load < curr.load) ? prev : curr);
+            
+            if(confirm(`سيتم إسناد الطلب ذكياً للمندوب: ${bestDriver.name}\n(لديه ${bestDriver.load} طلبات حالياً).\nهل توافق؟`)) {
+                let msg = `🌟 عميلنا العزيز،\nتم إسناد طلبك ذكياً للمندوب: ${bestDriver.name}.\nيمكنك التتبع الآن!`;
+                window.open(`https://wa.me/968${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم الإسناد للمندوب', driverId: bestDriver.id, driverName: bestDriver.name }) }).then(() => fetchAdminData());
+            }
+        }
+
+        function assignOrder(orderId, phone, event) {
+            const select = document.getElementById(`driver-select-${orderId}`);
+            if(!select.value) { alert('اختر مندوب!'); return; }
+            event.target.innerText = 'جاري الإسناد...';
+            let msg = `🌟 عميلنا العزيز،\nتم إسناد طلبك للمندوب: ${select.options[select.selectedIndex].getAttribute('data-name')}.\nيمكنك التتبع الآن!`;
+            window.open(`https://wa.me/968${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم الإسناد للمندوب', driverId: select.value, driverName: select.options[select.selectedIndex].getAttribute('data-name') }) }).then(() => fetchAdminData());
         }
 
         function renderCharts(orders, drivers) {
@@ -482,15 +458,6 @@
                     options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'أفضل المناديب (توصيلات ناجحة)' }, legend: {display:false} } }
                 });
             }
-        }
-
-        function assignOrder(orderId, phone, event) {
-            const select = document.getElementById(`driver-select-${orderId}`);
-            if(!select.value) { alert('اختر مندوب!'); return; }
-            event.target.innerText = 'جاري الإسناد...';
-            let msg = `🌟 عميلنا العزيز،\nتم إسناد طلبك للمندوب: ${select.options[select.selectedIndex].getAttribute('data-name')}.\nيمكنك تتبع الطلب من المنصة الآن!`;
-            window.open(`https://wa.me/968${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم الإسناد للمندوب', driverId: select.value, driverName: select.options[select.selectedIndex].getAttribute('data-name') }) }).then(() => fetchAdminData());
         }
     </script>
 </body>
