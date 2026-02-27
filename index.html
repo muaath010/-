@@ -26,7 +26,6 @@
         .btn-back { background-color: transparent; color: #666; border: 1px solid #ddd; margin-bottom: 15px; margin-top: 0;} .btn-back:hover { background-color: #eee; }
         .btn-location { background-color: #17a2b8; margin-top: 0; margin-bottom: 10px;}
         .btn-smart { background-color: #6f42c1; font-size: 14px; padding: 10px; margin-top: 5px; } .btn-smart:hover { background-color: #59339d; }
-        .btn-camera { background-color: #fd7e14; color: white; display: block; text-align: center; border-radius: 8px; padding: 12px; font-weight: bold; text-decoration: none; margin-bottom: 10px; cursor: pointer;}
         .hidden { display: none !important; }
         .map-box { height: 300px; border-radius: 8px; margin-top: 15px; z-index: 1;}
         .section-title { color: var(--primary-gold); border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 25px;}
@@ -158,19 +157,18 @@
         </div>
     </div>
 
-    <input type="file" accept="image/*" capture="environment" id="cameraInput" class="hidden" onchange="processPoDImage(event)">
-
     <div class="footer" id="main-footer">
         <span onclick="showSection('driver-login')">الموظفين</span> | <span onclick="showSection('admin-login')">الإدارة</span>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxda3drvEHbUOecHIFTHfHr-g7gUv5Xczcl9JYAZsJA2QLQOTIc9WZXybQ1-9C4mT0h/exec'; 
+        // === ضع رابط السكريبت الخاص بك هنا مرة أخرى ===
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3EzCrHZLeNd5q6QjGM71flRZ4jpPRBE1E5YyWRGaagFTA5h5HyEVXfnYziX2cFJk5/exec'; 
         const ADMIN_PHONE = "93516953";
         let watchId; let adminRefreshInterval; 
         let tempCustLat = null; let tempCustLng = null; let activePromoCode = "";
-        let chart1, chart2; let currentPoDOrderId = null; let availableDriversData = [];
+        let chart1, chart2; let availableDriversData = [];
 
         window.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('adminLogged') === 'true') { showSection('admin-dashboard'); startAdminAutoRefresh(); }
@@ -197,7 +195,6 @@
             return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1); 
         }
 
-        /* ================= العميل ================= */
         function loginCustomer() { const p = document.getElementById('cust-phone').value; if(p.length >= 8) { localStorage.setItem('customerPhone', p); showSection('customer-dashboard'); checkMyOrder(); } else alert('رقم هاتف غير صحيح'); }
 
         function getCustomerLocation(e) {
@@ -217,8 +214,7 @@
             const btn = event.target; btn.innerText = '⏳'; btn.disabled = true;
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'check_coupon', code: code }) })
             .then(res => res.json()).then(data => {
-                const msgBox = document.getElementById('coupon-msg');
-                msgBox.classList.remove('hidden');
+                const msgBox = document.getElementById('coupon-msg'); msgBox.classList.remove('hidden');
                 if(data.status === 'valid') { msgBox.innerText = `✅ تم تفعيل خصم ${data.discount}%!`; activePromoCode = code; document.getElementById('promo-code').disabled = true;}
                 else { msgBox.innerText = '❌ الكود غير صحيح أو منتهي.'; msgBox.style.color = 'red'; activePromoCode = ""; }
             }).finally(() => { btn.innerText = 'تطبيق'; btn.disabled = false; });
@@ -265,7 +261,6 @@
             }).finally(() => { btn.innerText = 'إرسال الطلب وإبلاغ الإدارة 📲'; btn.disabled = false; });
         }
 
-        // إرجاع كود الشكاوى والتقييم بالكامل 
         function submitFeedback(event) {
             const text = document.getElementById('complaint-text').value; let rating = 0;
             const selectedStar = document.querySelector('input[name="rating"]:checked');
@@ -283,7 +278,6 @@
             }).finally(() => { btn.innerText = 'إرسال للإدارة مباشرة 📩'; btn.disabled = false; });
         }
 
-        /* ================= المندوب والكاميرا ================= */
         function loginDriver(e) {
             const id = document.getElementById('drv-id').value; const pass = document.getElementById('drv-pass').value;
             if(!id || !pass) return;
@@ -304,7 +298,7 @@
                 let badgeTxt = data.completedCount >= 100 ? "💎 ماسي" : (data.completedCount >= 50 ? "🥇 ذهبي" : (data.completedCount >= 30 ? "🥈 فضي" : (data.completedCount >= 10 ? "🥉 برونزي" : "🛵 مبتدئ")));
                 document.getElementById('driver-badge-display').innerText = `مستواك: ${badgeTxt} (${data.completedCount} توصيلة)`;
                 container.innerHTML = '';
-                if(data.orders.length === 0) { container.innerHTML = '<p>لا توجد طلبات مسندة.</p>'; document.getElementById('map-container').classList.add('hidden'); return; }
+                if(data.orders.length === 0) { container.innerHTML = '<p>لا توجد طلبات مسندة إليك حالياً.</p>'; document.getElementById('map-container').classList.add('hidden'); return; }
 
                 data.orders.forEach(order => {
                     let actionsHtml = '';
@@ -317,53 +311,13 @@
                                 <a href="tel:${order.phone}" style="display:inline-block; padding:8px 15px; background:#17a2b8; color:white; text-decoration:none; border-radius:5px;">📞 اتصال</a>
                                 <a href="${waLink}" target="_blank" style="display:inline-block; padding:8px 15px; background:#25D366; color:white; text-decoration:none; border-radius:5px;">💬 واتساب</a>
                             </div>
-                            <button id="btn-cam-${order.id}" class="btn-camera" onclick="openCamera('${order.id}')">📸 تصوير الطلب عند الباب (إثبات)</button>
-                            <button id="btn-done-${order.id}" onclick="completeOrder('${order.id}')" style="background:#dc3545;" ${order.podUrl ? '' : 'disabled'}>${order.podUrl ? 'تأكيد التسليم النهائي ✅' : 'يجب تصوير الطلب أولاً 🔒'}</button>
+                            <button onclick="completeOrder('${order.id}')" style="background:#dc3545;">تأكيد تسليم الطلب للعميل ✅</button>
                         `;
                         startDriverGPS(order.id);
                     }
                     container.innerHTML += `<div style="border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:15px;"><h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${order.id}</h4><p style="margin:5px 0;"><strong>من:</strong> ${order.pickup} | <strong>إلى:</strong> ${order.area}</p>${actionsHtml}</div>`;
                 });
             });
-        }
-
-        function openCamera(orderId) {
-            currentPoDOrderId = orderId;
-            document.getElementById('cameraInput').click(); 
-        }
-
-        function processPoDImage(event) {
-            const file = event.target.files[0];
-            if (!file || !currentPoDOrderId) return;
-            
-            const camBtn = document.getElementById(`btn-cam-${currentPoDOrderId}`);
-            camBtn.innerText = 'جاري رفع الصورة... ⏳'; camBtn.style.background = '#666';
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; 
-                    const scaleSize = MAX_WIDTH / img.width;
-                    canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    const base64Str = canvas.toDataURL('image/jpeg', 0.6); 
-                    
-                    fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'upload_pod', orderId: currentPoDOrderId, base64: base64Str }) })
-                    .then(res => res.json()).then(data => {
-                        if(data.status === 'success') {
-                            camBtn.innerText = '✅ تم رفع الصورة'; camBtn.style.background = '#28a745';
-                            const doneBtn = document.getElementById(`btn-done-${currentPoDOrderId}`);
-                            doneBtn.disabled = false; doneBtn.innerText = 'تأكيد التسليم النهائي ✅';
-                        } else { alert('خطأ في رفع الصورة!'); camBtn.innerText = '📸 حاول التصوير مرة أخرى'; camBtn.style.background = '#fd7e14';}
-                    });
-                }
-                img.src = e.target.result;
-            }
-            reader.readAsDataURL(file);
         }
 
         function acceptOrder(orderId) {
@@ -386,7 +340,7 @@
         }
 
         function completeOrder(orderId) {
-            if(confirm("هل متأكد أنك قمت بتسليم الطلب وصورته؟")) {
+            if(confirm("هل متأكد أنك قمت بتسليم الطلب للعميل؟")) {
                 if(watchId && navigator.geolocation) { navigator.geolocation.clearWatch(watchId); watchId = null; }
                 document.getElementById('map-container').classList.add('hidden');
                 fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم التسليم' }) }).then(() => {
@@ -395,7 +349,6 @@
             }
         }
 
-        /* ================= الإدارة والرسم البياني ================= */
         function loginAdmin(event) { 
             const user = document.getElementById('adm-user').value; const pass = document.getElementById('adm-pass').value;
             if(!user || !pass) return;
@@ -420,7 +373,6 @@
                     newContainer.innerHTML = ''; allContainer.innerHTML = '';
                     availableDriversData = data.drivers; 
                     
-                    // إرجاع دالة الرسم البياني للعمل
                     renderCharts(data.allOrders, data.drivers);
 
                     if(data.newOrders.length === 0) newContainer.innerHTML = '<p style="color:#666;">لا توجد طلبات جديدة.</p>';
@@ -448,8 +400,7 @@
 
                     data.allOrders.reverse().forEach(o => {
                         let badgeClass = o.status.includes('انتظار') || o.status.includes('مراجعة') ? 'badge-wait' : (o.status.includes('تم التسليم') ? 'badge-done' : 'badge-prog');
-                        let podLink = o.podUrl ? `<br><a href="${o.podUrl}" target="_blank" style="color:blue; text-decoration:underline;">📸 عرض صورة التسليم</a>` : '';
-                        allContainer.innerHTML += `<div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;"><strong>${o.id}</strong> - <span class="badge ${badgeClass}">${o.status}</span><p style="margin:5px 0; color:#555;">المنطقة: ${o.area} ${o.driverName ? '<br><span style="color:var(--primary-gold)">المندوب: '+o.driverName+'</span>' : ''} ${podLink}</p></div>`;
+                        allContainer.innerHTML += `<div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;"><strong>${o.id}</strong> - <span class="badge ${badgeClass}">${o.status}</span><p style="margin:5px 0; color:#555;">المنطقة: ${o.area} ${o.driverName ? '<br><span style="color:var(--primary-gold)">المندوب: '+o.driverName+'</span>' : ''}</p></div>`;
                     });
                 }
             }).finally(() => { isFetchingAdmin = false; });
@@ -475,7 +426,6 @@
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم الإسناد للمندوب', driverId: select.value, driverName: select.options[select.selectedIndex].getAttribute('data-name') }) }).then(() => fetchAdminData());
         }
 
-        // إرجاع كود الرسوم البيانية بالكامل
         function renderCharts(orders, drivers) {
             let pCount = 0, iCount = 0, dCount = 0;
             orders.forEach(o => {
