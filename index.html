@@ -131,10 +131,10 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxUDDxL-RAZ2ZPqw9l33bbZfio59FBJQEnUmag9rVJSEHA88EV68K2FgivbX8UBVFr4/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwauZZjU1eabj11xA86Iz-udJc4nlBk_WOQe0-iui_qU_EdQy2e7mKXj0QPzCqtlQdM/exec';
         const ADMIN_PHONE = "93516953";
         let watchId; 
-        let adminRefreshInterval; // مؤقت تحديث الإدارة
+        let adminRefreshInterval; 
 
         window.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('adminLogged') === 'true') {
@@ -154,7 +154,6 @@
             if(sectionId.includes('dashboard')) document.getElementById('main-footer').classList.add('hidden');
             else document.getElementById('main-footer').classList.remove('hidden');
 
-            // إيقاف التحديث التلقائي إذا خرج من لوحة الإدارة
             if(sectionId !== 'admin-dashboard') stopAdminAutoRefresh();
         }
 
@@ -188,9 +187,8 @@
             fetch(SCRIPT_URL, {
                 method: 'POST', body: JSON.stringify({ action: 'check_customer_order', phone: phone })
             }).then(res => res.json()).then(data => {
-                // معالجة الطلب الحالي
                 if(data.status === "success" && data.activeOrder) {
-                    let badgeClass = data.activeOrder.status.includes('انتظار') ? 'badge-wait' : 'badge-prog';
+                    let badgeClass = data.activeOrder.status.includes('انتظار') || data.activeOrder.status.includes('مراجعة') ? 'badge-wait' : 'badge-prog';
                     statusArea.innerHTML = `
                         <h4 style="margin-top:0; color:var(--primary-gold);">طلبك الحالي النشط</h4>
                         <strong>رقم الطلب:</strong> ${data.activeOrder.id}<br>
@@ -214,7 +212,6 @@
                     document.getElementById('customer-map-container').classList.add('hidden');
                 }
 
-                // معالجة الطلبات السابقة
                 if(data.historyOrders && data.historyOrders.length > 0) {
                     historyArea.classList.remove('hidden');
                     historyList.innerHTML = '';
@@ -268,6 +265,7 @@
 
         function fetchDriverOrders() {
             const id = localStorage.getItem('driverId');
+            const dName = localStorage.getItem('driverName'); // جلب اسم المندوب
             const container = document.getElementById('driver-orders-list');
             container.innerHTML = '<p>جاري البحث...</p>';
 
@@ -281,16 +279,18 @@
                     if(order.status === 'تم الإسناد للمندوب') {
                         actionsHtml = `<button onclick="acceptOrder('${order.id}')" class="btn-success">استلام وبدء التتبع 📍</button>`;
                     } else if (order.status.includes('قيد التوصيل')) {
-                        // إظهار زر تأكيد التسليم ورقم هاتف العميل
+                        // تجهيز رسالة الواتساب الذكية
+                        let msg = `أهلاً بك عميلنا العزيز 👋\nأنا المندوب: *${dName}* من فريق نعاون 🛵\n\nلقد استلمت طلبك رقم [ ${order.id} ] وأنا في طريقي الآن لتنفيذه!\n\n📍 الاستلام من: ${order.pickup}\n📍 التوصيل إلى: ${order.area}\n📦 التفاصيل: ${order.details}\n\nسأتواصل معك عند الوصول، شكراً لثقتك بنا ✨`;
+                        let waLink = `https://wa.me/968${order.phone}?text=${encodeURIComponent(msg)}`;
+
                         actionsHtml = `
                             <div style="margin: 10px 0; background: #f1f8ff; padding: 10px; border-radius: 5px;">
-                                <p style="margin:0 0 5px 0;"><strong>رقم هاتف العميل:</strong></p>
+                                <p style="margin:0 0 5px 0;"><strong>تواصل مع العميل:</strong></p>
                                 <a href="tel:${order.phone}" style="display:inline-block; padding:8px 15px; background:#17a2b8; color:white; text-decoration:none; border-radius:5px; margin-left:5px;">📞 اتصال</a>
-                                <a href="https://wa.me/968${order.phone}" target="_blank" style="display:inline-block; padding:8px 15px; background:#25D366; color:white; text-decoration:none; border-radius:5px;">💬 واتساب</a>
+                                <a href="${waLink}" target="_blank" style="display:inline-block; padding:8px 15px; background:#25D366; color:white; text-decoration:none; border-radius:5px;">💬 إرسال رسالة التوصيل</a>
                             </div>
                             <button onclick="completeOrder('${order.id}')" style="background:#dc3545;">تأكيد تسليم الطلب للعميل ✅</button>
                         `;
-                        // التأكد من أن الخريطة تعمل
                         startDriverGPS(order.id);
                     }
 
@@ -337,11 +337,10 @@
             }
         }
 
-        // دالة المندوب الجديدة: تأكيد التسليم
         function completeOrder(orderId) {
             if(confirm("هل متأكد أنك قمت بتسليم الطلب للعميل؟")) {
                 if(watchId && navigator.geolocation) {
-                    navigator.geolocation.clearWatch(watchId); // إيقاف الـ GPS
+                    navigator.geolocation.clearWatch(watchId); 
                     watchId = null;
                 }
                 document.getElementById('map-container').classList.add('hidden');
@@ -370,11 +369,10 @@
             }).finally(() => { btn.innerText = 'دخول للإدارة'; btn.disabled = false; });
         }
 
-        // التحديث التلقائي للإدارة
         function startAdminAutoRefresh() {
-            fetchAdminData(); // جلب فوري
+            fetchAdminData(); 
             if(!adminRefreshInterval) {
-                adminRefreshInterval = setInterval(fetchAdminData, 5000); // تحديث كل 5 ثواني
+                adminRefreshInterval = setInterval(fetchAdminData, 5000); 
             }
         }
         function stopAdminAutoRefresh() {
@@ -383,7 +381,7 @@
 
         let isFetchingAdmin = false;
         function fetchAdminData() {
-            if(isFetchingAdmin) return; // منع التداخل إذا كان النت بطيء
+            if(isFetchingAdmin) return; 
             isFetchingAdmin = true;
 
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'get_admin_data' }) })
@@ -391,7 +389,6 @@
                 const newContainer = document.getElementById('admin-new-orders');
                 const allContainer = document.getElementById('admin-all-orders');
                 
-                // تحديث الواجهة فقط إذا كان المستخدم لا يزال في صفحة الإدارة
                 if(!document.getElementById('admin-dashboard').classList.contains('hidden')){
                     newContainer.innerHTML = ''; allContainer.innerHTML = '';
 
@@ -417,7 +414,7 @@
                     }
 
                     data.allOrders.reverse().forEach(o => {
-                        let badgeClass = o.status.includes('انتظار') ? 'badge-wait' : (o.status.includes('تم التسليم') ? 'badge-done' : 'badge-prog');
+                        let badgeClass = o.status.includes('انتظار') || o.status.includes('مراجعة') ? 'badge-wait' : (o.status.includes('تم التسليم') ? 'badge-done' : 'badge-prog');
                         allContainer.innerHTML += `
                             <div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;">
                                 <strong>${o.id}</strong> - <span class="badge ${badgeClass}">${o.status}</span>
