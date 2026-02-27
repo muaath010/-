@@ -8,7 +8,7 @@
     <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <style>
         :root { --primary-gold: #D4AF37; --dark-gold: #AA8C2C; --bg-white: #FFFFFF; --text-dark: #333333; --light-gray: #F9F9F9; }
         body { font-family: 'Cairo', sans-serif; margin: 0; padding: 0; background-color: var(--light-gray); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
         .header { background-color: var(--bg-white); color: var(--primary-gold); text-align: center; padding: 15px; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-bottom: 3px solid var(--primary-gold); position: sticky; top: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
@@ -23,6 +23,7 @@
         .btn-danger { background-color: #dc3545; margin-top: 20px;} .btn-danger:hover { background-color: #c82333; }
         .btn-success { background-color: #28a745; } .btn-success:hover { background-color: #218838; }
         .btn-back { background-color: transparent; color: #666; border: 1px solid #ddd; margin-bottom: 15px; margin-top: 0;} .btn-back:hover { background-color: #eee; }
+        .btn-location { background-color: #17a2b8; margin-top: 0; margin-bottom: 10px;}
         .hidden { display: none; }
         .map-box { height: 300px; border-radius: 8px; margin-top: 15px; z-index: 1;}
         .section-title { color: var(--primary-gold); border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 25px;}
@@ -31,12 +32,13 @@
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;}
         .badge-wait { background: #fff3cd; color: #856404; } .badge-prog { background: #cce5ff; color: #004085; } .badge-done { background: #d4edda; color: #155724; }
         .auto-refresh-indicator { font-size: 12px; color: green; text-align: center; margin-top: -10px; margin-bottom: 10px; }
-        
-        /* تصميم النجوم التفاعلية */
         .star-rating { display: flex; flex-direction: row-reverse; justify-content: center; gap: 5px; margin-bottom: 15px; }
         .star-rating input { display: none; }
         .star-rating label { font-size: 35px; color: #ddd; cursor: pointer; transition: 0.2s; }
         .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: var(--primary-gold); }
+        .eta-box { background: #e8f5e9; border: 1px solid #c8e6c9; padding: 10px; border-radius: 8px; margin-top: 10px; text-align: center; color: #2e7d32; font-weight: bold;}
+        .driver-badge { display: inline-block; padding: 5px 15px; background: #333; color: var(--primary-gold); border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
+        .chart-container { position: relative; height: 250px; width: 100%; margin-top: 15px; margin-bottom: 30px;}
     </style>
 </head>
 <body>
@@ -67,6 +69,7 @@
             
             <div id="customer-map-container" class="hidden">
                 <h4 class="section-title" style="margin-top:0;">📍 تتبع المندوب المباشر</h4>
+                <div id="eta-display" class="hidden eta-box"></div>
                 <div id="customer-map" class="map-box"></div>
             </div>
 
@@ -79,6 +82,8 @@
             <h4 class="section-title">➕ طلب توصيل جديد</h4>
             <input type="text" id="cust-city" placeholder="الولاية (مثال: عبري، نزوى)">
             <input type="text" id="cust-area" placeholder="المنطقة / الحي (مثال: السوق، الريبة)">
+            <button onclick="getCustomerLocation(event)" class="btn-location" id="btn-get-loc">📍 حدد موقعي لتسهيل التوصيل للمندوب (اختياري)</button>
+            <p id="loc-status" style="font-size: 12px; color: green; margin: -5px 0 10px 0; text-align: center; display: none;">✅ تم تحديد موقعك بنجاح</p>
             <input type="text" id="pickup-loc" placeholder="مكان الاستلام (اسم المحل/المطعم)">
             <textarea id="order-details" placeholder="تفاصيل الطلب..."></textarea>
             <button onclick="submitOrder(event)">إرسال الطلب وإبلاغ الإدارة 📲</button>
@@ -108,7 +113,10 @@
         </div>
 
         <div id="driver-dashboard" class="card section hidden">
-            <h3 id="driver-welcome-msg">الطلبات المسندة إليك</h3>
+            <div style="text-align: center;">
+                <h3 id="driver-welcome-msg" style="margin-bottom: 5px;">أهلاً بك 🛵</h3>
+                <div id="driver-badge-display" class="driver-badge">🌟 جاري حساب مستواك...</div>
+            </div>
             <button onclick="fetchDriverOrders()">تحديث طلباتي 🔄</button>
             <div id="driver-orders-list"></div>
             
@@ -133,6 +141,10 @@
             <h3>إدارة العمليات والمناديب</h3>
             <div class="auto-refresh-indicator">🟢 يتم التحديث تلقائياً كل 5 ثوانٍ</div>
             
+            <h4 class="section-title">📊 إحصائيات نعاون</h4>
+            <div class="chart-container"><canvas id="statusChart"></canvas></div>
+            <div class="chart-container"><canvas id="driversChart"></canvas></div>
+            
             <h4 class="section-title" style="margin-top: 10px;">🆕 الطلبات الجديدة</h4>
             <div id="admin-new-orders"></div>
 
@@ -149,29 +161,23 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyGNZcZyKP_crvtqUyAK8w2bV_eimKHW0cCFaoRyCiVkWhov2D0xycQY2mYq3hjiV5V/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_QJ_34GwexyimHBV7IOd0XrROhv2nnA-Br-S2TWNf8iacIMRZDwUKdqiCdYEfksP-/exec'; // ضع رابطك هنا
         const ADMIN_PHONE = "93516953";
-        let watchId; 
-        let adminRefreshInterval; 
+        let watchId; let adminRefreshInterval; 
+        let tempCustLat = null; let tempCustLng = null;
+        let chart1, chart2;
 
         window.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('adminLogged') === 'true') {
-                showSection('admin-dashboard'); startAdminAutoRefresh();
-            } else if (localStorage.getItem('driverId')) {
-                document.getElementById('driver-welcome-msg').innerText = `أهلاً بك، ${localStorage.getItem('driverName')} 🛵`;
-                showSection('driver-dashboard'); fetchDriverOrders();
-            } else if (localStorage.getItem('customerPhone')) {
-                showSection('customer-dashboard'); checkMyOrder();
-            }
+            if (localStorage.getItem('adminLogged') === 'true') { showSection('admin-dashboard'); startAdminAutoRefresh(); }
+            else if (localStorage.getItem('driverId')) { document.getElementById('driver-welcome-msg').innerText = `أهلاً بك، ${localStorage.getItem('driverName')}`; showSection('driver-dashboard'); fetchDriverOrders(); }
+            else if (localStorage.getItem('customerPhone')) { showSection('customer-dashboard'); checkMyOrder(); }
         });
 
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
             document.getElementById(sectionId).classList.remove('hidden');
-            
             if(sectionId.includes('dashboard')) document.getElementById('main-footer').classList.add('hidden');
             else document.getElementById('main-footer').classList.remove('hidden');
-
             if(sectionId !== 'admin-dashboard') stopAdminAutoRefresh();
         }
 
@@ -179,32 +185,47 @@
             if(confirm("هل أنت متأكد من تسجيل الخروج؟")) {
                 localStorage.clear(); 
                 if(watchId && navigator.geolocation) navigator.geolocation.clearWatch(watchId); 
-                stopAdminAutoRefresh();
-                showSection('customer-login'); 
+                stopAdminAutoRefresh(); showSection('customer-login'); 
             }
+        }
+
+        // معادلة حساب المسافة (Haversine Formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            if(!lat1 || !lon1 || !lat2 || !lon2) return null;
+            const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return (R * c).toFixed(1); 
         }
 
         /* ================= العميل ================= */
         function loginCustomer() {
             const phone = document.getElementById('cust-phone').value;
-            if(phone.length >= 8) {
-                localStorage.setItem('customerPhone', phone);
-                showSection('customer-dashboard'); checkMyOrder();
-            } else { alert('الرجاء إدخال رقم هاتف صحيح'); }
+            if(phone.length >= 8) { localStorage.setItem('customerPhone', phone); showSection('customer-dashboard'); checkMyOrder(); }
+            else { alert('الرجاء إدخال رقم هاتف صحيح'); }
+        }
+
+        function getCustomerLocation(event) {
+            event.preventDefault();
+            const btn = document.getElementById('btn-get-loc'); const statusText = document.getElementById('loc-status');
+            btn.innerText = 'جاري تحديد الموقع... ⏳';
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    tempCustLat = pos.coords.latitude; tempCustLng = pos.coords.longitude;
+                    btn.classList.add('hidden'); statusText.style.display = 'block';
+                }, err => { alert("يرجى السماح بالوصول للموقع."); btn.innerText = '📍 حدد موقعي'; });
+            } else { alert("المتصفح لا يدعم تحديد الموقع."); btn.innerText = '📍 حدد موقعي'; }
         }
 
         let customerMap, customerMarker;
         function checkMyOrder() {
             const phone = localStorage.getItem('customerPhone');
             const statusArea = document.getElementById('customer-status-area');
-            const historyArea = document.getElementById('customer-history-area');
-            const historyList = document.getElementById('customer-history-list');
-            
+            const historyArea = document.getElementById('customer-history-area'); const historyList = document.getElementById('customer-history-list');
             statusArea.innerHTML = 'جاري البحث... ⏳';
 
-            fetch(SCRIPT_URL, {
-                method: 'POST', body: JSON.stringify({ action: 'check_customer_order', phone: phone })
-            }).then(res => res.json()).then(data => {
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'check_customer_order', phone: phone }) })
+            .then(res => res.json()).then(data => {
                 if(data.status === "success" && data.activeOrder) {
                     let badgeClass = data.activeOrder.status.includes('انتظار') || data.activeOrder.status.includes('مراجعة') ? 'badge-wait' : 'badge-prog';
                     statusArea.innerHTML = `
@@ -216,34 +237,36 @@
                     
                     if(data.activeOrder.status.includes('قيد التوصيل') && data.activeOrder.lat) {
                         const mapContainer = document.getElementById('customer-map-container');
+                        const etaBox = document.getElementById('eta-display');
                         mapContainer.classList.remove('hidden');
+
+                        // حساب المسافة والـ ETA إذا كان موقع العميل محفوظاً
+                        if(data.activeOrder.custLat && data.activeOrder.custLng) {
+                            let dist = calculateDistance(data.activeOrder.lat, data.activeOrder.lng, data.activeOrder.custLat, data.activeOrder.custLng);
+                            if(dist) {
+                                let timeMins = Math.ceil((dist / 40) * 60); // بافتراض سرعة 40 كم/س
+                                etaBox.classList.remove('hidden');
+                                etaBox.innerHTML = `المسافة: ${dist} كم 🛵 | الوقت المتوقع: ${timeMins} دقيقة ⏱️`;
+                            }
+                        }
                         
                         if(!customerMap) {
                             customerMap = L.map('customer-map').setView([data.activeOrder.lat, data.activeOrder.lng], 15);
                             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(customerMap);
                             customerMarker = L.marker([data.activeOrder.lat, data.activeOrder.lng]).addTo(customerMap).bindPopup('المندوب هنا 🛵').openPopup();
                         } else {
-                            customerMarker.setLatLng([data.activeOrder.lat, data.activeOrder.lng]);
-                            customerMap.panTo([data.activeOrder.lat, data.activeOrder.lng]);
+                            customerMarker.setLatLng([data.activeOrder.lat, data.activeOrder.lng]); customerMap.panTo([data.activeOrder.lat, data.activeOrder.lng]);
                         }
                         setTimeout(() => { customerMap.invalidateSize(); }, 500);
-                    } else { document.getElementById('customer-map-container').classList.add('hidden'); }
+                    } else { document.getElementById('customer-map-container').classList.add('hidden'); document.getElementById('eta-display').classList.add('hidden'); }
                 } else {
                     statusArea.innerHTML = '<p style="color:green; margin:0;">ليس لديك طلبات نشطة حالياً. اطلب الآن!</p>';
                     document.getElementById('customer-map-container').classList.add('hidden');
                 }
 
                 if(data.historyOrders && data.historyOrders.length > 0) {
-                    historyArea.classList.remove('hidden');
-                    historyList.innerHTML = '';
-                    data.historyOrders.forEach(o => {
-                        historyList.innerHTML += `
-                            <div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;">
-                                <strong>${o.id}</strong> - <span class="badge badge-done">${o.status}</span>
-                                <br><span style="color:#666;">من: ${o.pickup} | التفاصيل: ${o.details}</span>
-                            </div>
-                        `;
-                    });
+                    historyArea.classList.remove('hidden'); historyList.innerHTML = '';
+                    data.historyOrders.forEach(o => { historyList.innerHTML += `<div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;"><strong>${o.id}</strong> - <span class="badge badge-done">${o.status}</span><br><span style="color:#666;">من: ${o.pickup} | التفاصيل: ${o.details}</span></div>`; });
                 } else { historyArea.classList.add('hidden'); }
             });
         }
@@ -252,49 +275,42 @@
             const payload = {
                 action: 'new_order', phone: localStorage.getItem('customerPhone'),
                 city: document.getElementById('cust-city').value, area: document.getElementById('cust-area').value,
-                pickup: document.getElementById('pickup-loc').value, details: document.getElementById('order-details').value
+                pickup: document.getElementById('pickup-loc').value, details: document.getElementById('order-details').value,
+                custLat: tempCustLat, custLng: tempCustLng
             };
             if(!payload.city || !payload.area || !payload.pickup) { alert('الرجاء تعبئة تفاصيل الطلب'); return; }
 
             const btn = event.target; btn.innerText = 'جاري التسجيل...'; btn.disabled = true;
 
-            let msg = `✨ أهلاً إدارة فريق نعاون!\nيوجد طلب توصيل جديد.\n📍 ${payload.city} - ${payload.area}\n🏪 من: ${payload.pickup}\n📞 هاتف العميل: ${payload.phone}`;
+            let msg = `✨ أهلاً إدارة فريق نعاون!\nيوجد طلب توصيل جديد.\n📍 ${payload.city} - ${payload.area}\n🏪 من: ${payload.pickup}\n📞 العميل: ${payload.phone}\n${payload.custLat ? '📍 (تم إرفاق موقع العميل الـ GPS لتسهيل التوصيل)' : ''}`;
             window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
 
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) }).then(() => {
-                alert('تم إرسال الطلب بنجاح للإدارة!'); checkMyOrder();
+                alert('تم إرسال الطلب للإدارة!'); checkMyOrder();
                 document.getElementById('pickup-loc').value = ''; document.getElementById('order-details').value = '';
+                document.getElementById('btn-get-loc').classList.remove('hidden'); document.getElementById('loc-status').style.display = 'none';
+                tempCustLat = null; tempCustLng = null;
             }).finally(() => { btn.innerText = 'إرسال الطلب وإبلاغ الإدارة 📲'; btn.disabled = false; });
         }
 
-        // إرسال التقييم والشكاوى للإدارة
         function submitFeedback(event) {
-            const text = document.getElementById('complaint-text').value;
-            let rating = 0;
+            const text = document.getElementById('complaint-text').value; let rating = 0;
             const selectedStar = document.querySelector('input[name="rating"]:checked');
             if (selectedStar) rating = selectedStar.value;
-
             if (!rating && !text) { alert('الرجاء اختيار تقييم أو كتابة ملاحظة.'); return; }
 
-            const phone = localStorage.getItem('customerPhone');
-            const btn = event.target;
-            btn.innerText = 'جاري الإرسال... ⏳'; btn.disabled = true;
+            const phone = localStorage.getItem('customerPhone'); const btn = event.target; btn.innerText = 'جاري الإرسال... ⏳'; btn.disabled = true;
 
             let starsStr = rating > 0 ? '⭐'.repeat(rating) : 'بدون تقييم نجوم';
-            let msg = `🚨 *تنبيه تقييم/شكوى من المنصة* 🚨\n\n📞 هاتف العميل: ${phone}\n⭐ التقييم: ${starsStr}\n💬 الرسالة: ${text}`;
+            let msg = `🚨 *تنبيه تقييم/شكوى* 🚨\n📞 هاتف العميل: ${phone}\n⭐ التقييم: ${starsStr}\n💬 الرسالة: ${text}`;
             window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
 
-            fetch(SCRIPT_URL, {
-                method: 'POST', body: JSON.stringify({ action: 'new_feedback', phone: phone, text: text, rating: rating })
-            }).then(() => {
-                alert('تم إرسال تقييمك بنجاح. نحن نهتم برأيك! ✨');
-                document.getElementById('complaint-text').value = '';
-                if(selectedStar) selectedStar.checked = false;
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'new_feedback', phone: phone, text: text, rating: rating }) }).then(() => {
+                alert('تم التقييم بنجاح. نحن نهتم برأيك! ✨'); document.getElementById('complaint-text').value = ''; if(selectedStar) selectedStar.checked = false;
             }).finally(() => { btn.innerText = 'إرسال للإدارة مباشرة 📩'; btn.disabled = false; });
         }
 
         /* ================= المندوب ================= */
-        let driverMap, driverMarker;
         function loginDriver(event) {
             const id = document.getElementById('drv-id').value; const pass = document.getElementById('drv-pass').value;
             if(!id || !pass) { alert('الرجاء إدخال البيانات'); return; }
@@ -306,18 +322,24 @@
                     localStorage.setItem('driverId', id); localStorage.setItem('driverName', data.name);
                     document.getElementById('driver-welcome-msg').innerText = `أهلاً بك، ${data.name} 🛵`;
                     showSection('driver-dashboard'); fetchDriverOrders();
-                } else { alert('رقم البطاقة أو كلمة المرور غير صحيحة!'); }
+                } else { alert('بيانات غير صحيحة!'); }
             }).catch(err => alert('خطأ')).finally(() => { btn.innerText = 'تسجيل الدخول'; btn.disabled = false; });
         }
 
         function fetchDriverOrders() {
-            const id = localStorage.getItem('driverId');
-            const dName = localStorage.getItem('driverName'); 
-            const container = document.getElementById('driver-orders-list');
-            container.innerHTML = '<p>جاري البحث...</p>';
+            const id = localStorage.getItem('driverId'); const dName = localStorage.getItem('driverName'); 
+            const container = document.getElementById('driver-orders-list'); container.innerHTML = '<p>جاري البحث...</p>';
 
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'get_driver_data', driverId: id }) })
             .then(res => res.json()).then(data => {
+                // نظام الحوافز
+                let badgeTxt = "🛵 مبتدئ";
+                if(data.completedCount >= 100) badgeTxt = "💎 ماسي بطل";
+                else if(data.completedCount >= 50) badgeTxt = "🥇 ذهبي مميز";
+                else if(data.completedCount >= 30) badgeTxt = "🥈 فضي محترف";
+                else if(data.completedCount >= 10) badgeTxt = "🥉 برونزي سريع";
+                document.getElementById('driver-badge-display').innerText = `مستواك: ${badgeTxt} (${data.completedCount} توصيلة)`;
+
                 container.innerHTML = '';
                 if(data.orders.length === 0) { container.innerHTML = '<p>لا توجد طلبات مسندة.</p>'; document.getElementById('map-container').classList.add('hidden'); return; }
 
@@ -326,76 +348,50 @@
                     if(order.status === 'تم الإسناد للمندوب') {
                         actionsHtml = `<button onclick="acceptOrder('${order.id}')" class="btn-success">استلام وبدء التتبع 📍</button>`;
                     } else if (order.status.includes('قيد التوصيل')) {
-                        let msg = `أهلاً بك عميلنا العزيز 👋\nأنا المندوب: *${dName}* من فريق نعاون 🛵\n\nلقد استلمت طلبك رقم [ ${order.id} ] وأنا في طريقي الآن لتنفيذه!\n\n📍 الاستلام من: ${order.pickup}\n📍 التوصيل إلى: ${order.area}\n📦 التفاصيل: ${order.details}\n\nسأتواصل معك عند الوصول، شكراً لثقتك بنا ✨`;
+                        let msg = `أهلاً بك عميلنا العزيز 👋\nأنا المندوب: *${dName}* من فريق نعاون 🛵\n\nلقد استلمت طلبك رقم [ ${order.id} ] وأنا في طريقي الآن لتنفيذه!\n📍 التوصيل إلى: ${order.area}\nسأتواصل معك عند الوصول ✨`;
                         let waLink = `https://wa.me/968${order.phone}?text=${encodeURIComponent(msg)}`;
-
                         actionsHtml = `
                             <div style="margin: 10px 0; background: #f1f8ff; padding: 10px; border-radius: 5px;">
                                 <p style="margin:0 0 5px 0;"><strong>تواصل مع العميل:</strong></p>
                                 <a href="tel:${order.phone}" style="display:inline-block; padding:8px 15px; background:#17a2b8; color:white; text-decoration:none; border-radius:5px; margin-left:5px;">📞 اتصال</a>
-                                <a href="${waLink}" target="_blank" style="display:inline-block; padding:8px 15px; background:#25D366; color:white; text-decoration:none; border-radius:5px;">💬 إرسال رسالة التوصيل</a>
+                                <a href="${waLink}" target="_blank" style="display:inline-block; padding:8px 15px; background:#25D366; color:white; text-decoration:none; border-radius:5px;">💬 واتساب التوصيل</a>
                             </div>
                             <button onclick="completeOrder('${order.id}')" style="background:#dc3545;">تأكيد تسليم الطلب للعميل ✅</button>
                         `;
                         startDriverGPS(order.id);
                     }
-
-                    container.innerHTML += `
-                        <div style="border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:15px;">
-                            <h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${order.id}</h4>
-                            <p style="margin:5px 0;"><strong>من:</strong> ${order.pickup} | <strong>إلى:</strong> ${order.area}</p>
-                            <p style="margin:5px 0;"><strong>التفاصيل:</strong> ${order.details}</p>
-                            ${actionsHtml}
-                        </div>
-                    `;
+                    container.innerHTML += `<div style="border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:15px;"><h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${order.id}</h4><p style="margin:5px 0;"><strong>من:</strong> ${order.pickup} | <strong>إلى:</strong> ${order.area}</p><p style="margin:5px 0;"><strong>التفاصيل:</strong> ${order.details}</p>${actionsHtml}</div>`;
                 });
             });
         }
 
         function acceptOrder(orderId) {
             const dName = localStorage.getItem('driverName'); const dId = localStorage.getItem('driverId');
-            
             let msg = `أهلاً بالإدارة!\nأنا المندوب: ${dName}\nقمت باستلام الطلب [ ${orderId} ] وبدأت التوصيل 📍`;
             window.open(`https://wa.me/968${ADMIN_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
-
             startDriverGPS(orderId);
-
-            fetch(SCRIPT_URL, {
-                method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'قيد التوصيل (المندوب في الطريق)', driverId: dId, driverName: dName })
-            }).then(() => fetchDriverOrders());
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'قيد التوصيل (المندوب في الطريق)', driverId: dId, driverName: dName }) }).then(() => fetchDriverOrders());
         }
 
         function startDriverGPS(orderId) {
             document.getElementById('map-container').classList.remove('hidden');
-            if(!driverMap) {
-                driverMap = L.map('driver-map').setView([23.2255, 56.5165], 14);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(driverMap);
-            }
+            if(!driverMap) { driverMap = L.map('driver-map').setView([23.2255, 56.5165], 14); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(driverMap); }
             if ("geolocation" in navigator && !watchId) {
-                watchId = navigator.geolocation.watchPosition(position => {
-                    const lat = position.coords.latitude; const lng = position.coords.longitude;
-                    if(!driverMarker) { driverMarker = L.marker([lat, lng]).addTo(driverMap); } 
-                    else { driverMarker.setLatLng([lat, lng]); }
+                watchId = navigator.geolocation.watchPosition(pos => {
+                    const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+                    if(!driverMarker) { driverMarker = L.marker([lat, lng]).addTo(driverMap); } else { driverMarker.setLatLng([lat, lng]); }
                     driverMap.panTo([lat, lng]);
-
                     fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_location', orderId: orderId, lat: lat, lng: lng }) });
-                }, error => console.log("GPS Error"), {enableHighAccuracy: true});
+                }, err => console.log("GPS Error"), {enableHighAccuracy: true});
             }
         }
 
         function completeOrder(orderId) {
             if(confirm("هل متأكد أنك قمت بتسليم الطلب للعميل؟")) {
-                if(watchId && navigator.geolocation) {
-                    navigator.geolocation.clearWatch(watchId); 
-                    watchId = null;
-                }
+                if(watchId && navigator.geolocation) { navigator.geolocation.clearWatch(watchId); watchId = null; }
                 document.getElementById('map-container').classList.add('hidden');
-
-                fetch(SCRIPT_URL, {
-                    method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم التسليم' })
-                }).then(() => {
-                    alert('شكراً لك! تم إغلاق الطلب بنجاح.');
-                    fetchDriverOrders();
+                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم التسليم' }) }).then(() => {
+                    alert('شكراً لك! تم إغلاق الطلب بنجاح.'); fetchDriverOrders();
                 });
             }
         }
@@ -404,86 +400,88 @@
         function loginAdmin(event) { 
             const user = document.getElementById('adm-user').value; const pass = document.getElementById('adm-pass').value;
             if(!user || !pass) { alert('الرجاء إدخال البيانات'); return; }
-
             const btn = event.target; btn.innerText = 'جاري التحقق...'; btn.disabled = true;
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'login_admin', user: user, pass: pass }) })
             .then(res => res.json()).then(data => {
-                if(data.status === 'success') {
-                    localStorage.setItem('adminLogged', 'true');
-                    showSection('admin-dashboard'); startAdminAutoRefresh();
-                } else { alert('بيانات الدخول خاطئة!'); }
+                if(data.status === 'success') { localStorage.setItem('adminLogged', 'true'); showSection('admin-dashboard'); startAdminAutoRefresh(); } 
+                else { alert('بيانات خاطئة!'); }
             }).finally(() => { btn.innerText = 'دخول للإدارة'; btn.disabled = false; });
         }
 
-        function startAdminAutoRefresh() {
-            fetchAdminData(); 
-            if(!adminRefreshInterval) {
-                adminRefreshInterval = setInterval(fetchAdminData, 5000); 
-            }
-        }
-        function stopAdminAutoRefresh() {
-            if(adminRefreshInterval) { clearInterval(adminRefreshInterval); adminRefreshInterval = null; }
-        }
+        function startAdminAutoRefresh() { fetchAdminData(); if(!adminRefreshInterval) { adminRefreshInterval = setInterval(fetchAdminData, 5000); } }
+        function stopAdminAutoRefresh() { if(adminRefreshInterval) { clearInterval(adminRefreshInterval); adminRefreshInterval = null; } }
 
         let isFetchingAdmin = false;
         function fetchAdminData() {
-            if(isFetchingAdmin) return; 
-            isFetchingAdmin = true;
-
+            if(isFetchingAdmin) return; isFetchingAdmin = true;
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'get_admin_data' }) })
             .then(res => res.json()).then(data => {
-                const newContainer = document.getElementById('admin-new-orders');
-                const allContainer = document.getElementById('admin-all-orders');
-                
                 if(!document.getElementById('admin-dashboard').classList.contains('hidden')){
+                    const newContainer = document.getElementById('admin-new-orders'); const allContainer = document.getElementById('admin-all-orders');
                     newContainer.innerHTML = ''; allContainer.innerHTML = '';
+                    
+                    // تحديث الإحصائيات (Chart.js)
+                    renderCharts(data.allOrders, data.drivers);
 
                     if(data.newOrders.length === 0) newContainer.innerHTML = '<p style="color:#666;">لا توجد طلبات جديدة حالياً.</p>';
                     else {
                         let opts = '<option value="">اختر المندوب...</option>';
                         data.drivers.forEach(d => opts += `<option value="${d.id}" data-name="${d.name}">${d.name}</option>`);
-                        
                         data.newOrders.forEach(o => {
-                            newContainer.innerHTML += `
-                                <div style="border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:8px; border-right: 5px solid var(--primary-gold); background:#fff;">
-                                    <h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${o.id}</h4>
-                                    <p style="margin:5px 0;"><strong>المنطقة:</strong> ${o.city} - ${o.area}</p>
-                                    <p style="margin:5px 0;"><strong>الاستلام من:</strong> ${o.pickup}</p>
-                                    <p style="margin:5px 0;"><strong>التفاصيل:</strong> ${o.details}</p>
-                                    <p style="margin:5px 0;"><strong>العميل:</strong> <a href="https://wa.me/968${o.phone}" target="_blank" style="color: green; text-decoration: none; font-weight:bold;">💬 ${o.phone}</a></p>
-                                    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-                                    <select id="driver-select-${o.id}" style="margin-bottom:10px;">${opts}</select>
-                                    <button onclick="assignOrder('${o.id}', '${o.phone}', event)" style="background:var(--primary-gold);">إسناد وإبلاغ العميل 📲</button>
-                                </div>
-                            `;
+                            newContainer.innerHTML += `<div style="border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:8px; border-right: 5px solid var(--primary-gold); background:#fff;"><h4 style="margin-top:0; color:var(--primary-gold);">طلب: ${o.id}</h4><p style="margin:5px 0;"><strong>المنطقة:</strong> ${o.city} - ${o.area}</p><p style="margin:5px 0;"><strong>الاستلام من:</strong> ${o.pickup}</p><p style="margin:5px 0;"><strong>التفاصيل:</strong> ${o.details}</p><p style="margin:5px 0;"><strong>العميل:</strong> <a href="https://wa.me/968${o.phone}" target="_blank" style="color: green; text-decoration: none; font-weight:bold;">💬 ${o.phone}</a></p><hr style="border:0; border-top:1px solid #eee; margin:15px 0;"><select id="driver-select-${o.id}" style="margin-bottom:10px;">${opts}</select><button onclick="assignOrder('${o.id}', '${o.phone}', event)" style="background:var(--primary-gold);">إسناد وإبلاغ العميل 📲</button></div>`;
                         });
                     }
 
                     data.allOrders.reverse().forEach(o => {
                         let badgeClass = o.status.includes('انتظار') || o.status.includes('مراجعة') ? 'badge-wait' : (o.status.includes('تم التسليم') ? 'badge-done' : 'badge-prog');
-                        allContainer.innerHTML += `
-                            <div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;">
-                                <strong>${o.id}</strong> - <span class="badge ${badgeClass}">${o.status}</span>
-                                <p style="margin:5px 0; color:#555;">المنطقة: ${o.area} | التفاصيل: ${o.details} ${o.driverName ? '<br><span style="color:var(--primary-gold)">مع المندوب: '+o.driverName+'</span>' : ''}</p>
-                            </div>
-                        `;
+                        allContainer.innerHTML += `<div style="border-bottom:1px solid #eee; padding:10px 0; font-size:14px;"><strong>${o.id}</strong> - <span class="badge ${badgeClass}">${o.status}</span><p style="margin:5px 0; color:#555;">المنطقة: ${o.area} | التفاصيل: ${o.details} ${o.driverName ? '<br><span style="color:var(--primary-gold)">المندوب: '+o.driverName+'</span>' : ''}</p></div>`;
                     });
                 }
             }).finally(() => { isFetchingAdmin = false; });
+        }
+
+        // دالة توليد الرسوم البيانية
+        function renderCharts(orders, drivers) {
+            let pCount = 0, iCount = 0, dCount = 0;
+            orders.forEach(o => {
+                if(o.status.includes('مراجعة') || o.status.includes('انتظار')) pCount++;
+                else if(o.status.includes('تم التسليم')) dCount++;
+                else iCount++;
+            });
+
+            // ترتيب المناديب حسب الإنجاز وتأخذ أفضل 5
+            drivers.sort((a,b) => b.load - a.load);
+            let topDNames = drivers.slice(0,5).map(d => d.name);
+            let topDLoads = drivers.slice(0,5).map(d => d.load);
+
+            Chart.defaults.font.family = 'Cairo';
+            
+            if(chart1) { chart1.data.datasets[0].data = [pCount, iCount, dCount]; chart1.update(); } 
+            else {
+                chart1 = new Chart(document.getElementById('statusChart'), {
+                    type: 'doughnut',
+                    data: { labels: ['قيد المراجعة/الإسناد', 'قيد التوصيل', 'تم التسليم'], datasets: [{ data: [pCount, iCount, dCount], backgroundColor: ['#ffc107', '#17a2b8', '#28a745'] }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'حالة جميع الطلبات' } } }
+                });
+            }
+
+            if(chart2) { chart2.data.labels = topDNames; chart2.data.datasets[0].data = topDLoads; chart2.update(); }
+            else {
+                chart2 = new Chart(document.getElementById('driversChart'), {
+                    type: 'bar',
+                    data: { labels: topDNames, datasets: [{ label: 'الطلبات المنجزة', data: topDLoads, backgroundColor: '#D4AF37' }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'أفضل المناديب (توصيلات ناجحة)' }, legend: {display:false} } }
+                });
+            }
         }
 
         function assignOrder(orderId, phone, event) {
             const select = document.getElementById(`driver-select-${orderId}`);
             if(!select.value) { alert('اختر مندوب!'); return; }
             event.target.innerText = 'جاري الإسناد...';
-
             let msg = `🌟 عميلنا العزيز،\nتم إسناد طلبك للمندوب: ${select.options[select.selectedIndex].getAttribute('data-name')}.\nيمكنك تتبع الطلب من المنصة الآن!`;
             window.open(`https://wa.me/968${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-
-            fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم الإسناد للمندوب', driverId: select.value, driverName: select.options[select.selectedIndex].getAttribute('data-name') })
-            }).then(() => fetchAdminData());
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'update_status', orderId: orderId, newStatus: 'تم الإسناد للمندوب', driverId: select.value, driverName: select.options[select.selectedIndex].getAttribute('data-name') }) }).then(() => fetchAdminData());
         }
     </script>
 </body>
